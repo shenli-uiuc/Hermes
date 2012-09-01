@@ -1697,6 +1697,7 @@ match_interests(struct ccnd_handle *h, struct content_entry *content,
         if (from_face != NULL && (npe->flags & CCN_FORW_LOCAL) != 0 &&
             (from_face->flags & CCN_FACE_GG) == 0)
             return(-1);
+        //Shen Li: schedule the sending
         new_matches = consume_matching_interests(h, npe, content, pc, face);
         if (from_face != NULL && (new_matches != 0 || ci + 1 == cm))
             note_content_from(h, npe, from_face->faceid, ci);
@@ -4364,11 +4365,15 @@ process_incoming_content(struct ccnd_handle *h, struct face *face,
     tail = msg + keysize;
     tailsize = size - keysize;
     hashtb_start(h->content_tab, e);
+    /*
+     *Shen Li: in our implementation or the demo, the hashtb_seek is not needed, as we do not use content store at all.
+     * In this case, the check (res == HT_OLD_ENTRY) is not needed
+     */
     res = hashtb_seek(e, msg, keysize, tailsize);
     content = e->data;
     if (res == HT_OLD_ENTRY) {
         if (tailsize != e->extsize ||
-              0 != memcmp(tail, ((unsigned char *)e->key) + keysize, tailsize)) {
+              0 != memcmp(tail, ((unsigned char *)e->key) + keysize, tailsize)) { //Shen Li: this is comparing digest?
             ccnd_msg(h, "ContentObject name collision!!!!!");
             ccnd_debug_ccnb(h, __LINE__, "new", face, msg, size);
             ccnd_debug_ccnb(h, __LINE__, "old", NULL, e->key, e->keysize + e->extsize);
@@ -4428,6 +4433,7 @@ Bail:
         int n_matches;
         enum cq_delay_class c;
         struct content_queue *q;
+        //Shen Li: match_interests will consume the interest and sendout the content as well.
         n_matches = match_interests(h, content, &obj, NULL, face);
         if (res == HT_NEW_ENTRY) {
             if (n_matches < 0) {

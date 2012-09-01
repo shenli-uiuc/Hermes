@@ -37,6 +37,10 @@
 #include <ccn/schedule.h>
 #include <ccn/seqwriter.h>
 
+//Start: added by Shen Li
+#include <ccn/hermes_sbf.h>
+//End: added by Shen Li
+
 /*
  * These are defined in other ccn headers, but the incomplete types suffice
  * for the purposes of this header.
@@ -223,6 +227,9 @@ struct face {
     uintmax_t rseq;
     struct ccnd_meter *meter[CCND_FACE_METER_N];
     unsigned short pktseq;     /**< sequence number for sent packets */
+    //start: added by Shen Li
+    struct hermes_bloom_wire * hbw;
+    //end: added by Shen Li
 };
 
 /** face flags */
