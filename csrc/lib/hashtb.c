@@ -111,6 +111,8 @@ hashtb_n(struct hashtb *ht)
     return(ht->n);
 }
 
+
+//Shen Li: this is a linear scan over all items in the bucket. It will be slow if we are facing severe collision.
 void *
 hashtb_lookup(struct hashtb *ht, const void *key, size_t keysize)
 {
@@ -130,6 +132,7 @@ hashtb_lookup(struct hashtb *ht, const void *key, size_t keysize)
     return(NULL);
 }
 
+//Shen Li: 
 static void
 setpos(struct hashtb_enumerator *hte, struct node **pp)
 {
@@ -241,6 +244,7 @@ hashtb_seek(struct hashtb_enumerator *hte, const void *key, size_t keysize, size
             return(HT_OLD_ENTRY);
         }
     }
+    //Shen Li: node, followed by data, followed by key, followed by extentions (here, ext is comps array)
     p = calloc(1, sizeof(*p) + ht->item_size + keysize + extsize);
     if (p == NULL) {
         setpos(hte, NULL);

@@ -20,7 +20,7 @@ struct hermes_bloom_wire {
 
 
 struct hermes_bloom_wire * sbf_create(uint32_t, uint8_t, uint16_t,  uint32_t);
-void sbf_insert(struct hermes_bloom_wire *, const char *, uint16_t);
-uint8_t sbf_check(struct hermes_bloom_wire *, const char *, uint16_t);
+void sbf_insert(struct hermes_bloom_wire *, const unsigned char *, uint16_t);
+uint8_t sbf_check(struct hermes_bloom_wire *, const unsigned char *, uint16_t);
 void sbf_swap(struct hermes_bloom_wire *);
 

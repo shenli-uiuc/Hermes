@@ -302,6 +302,7 @@ ccnd_face_from_faceid(struct ccnd_handle *h, unsigned faceid)
  * Assigns the faceid for a nacent face,
  * calls register_new_face() if successful.
  */
+//Shen Li: Also create SBF here
 static int
 enroll_face(struct ccnd_handle *h, struct face *face)
 {
@@ -316,6 +317,7 @@ enroll_face(struct ccnd_handle *h, struct face *face)
             h->face_gen += MAXFACES + 1;
             goto use_i;
         }
+    //Shen Li: increase the h->face_limit to roughly 3/2 * n
     i = (n + 1) * 3 / 2;
     if (i > MAXFACES) i = MAXFACES;
     if (i <= n)
@@ -323,6 +325,11 @@ enroll_face(struct ccnd_handle *h, struct face *face)
     a = realloc(a, i * sizeof(struct face *));
     if (a == NULL)
         return(-1); /* ENOMEM */
+    //Start: added by Shen Li
+    //Allocate the SBF for the face
+    //BTW: need to destroy the SBF when done
+    //End: added by Shen Li
+    //Shen Li: so the size of h->faces_by_faceid is actually changing
     h->face_limit = i;
     while (--i > n)
         a[i] = NULL;
@@ -1049,6 +1056,7 @@ init_face_flags(struct ccnd_handle *h, struct face *face, int setflags)
 /**
  * Make a new face entered in the faces_by_fd table.
  */
+//Shen Li: create the SBF here for the new face
 static struct face *
 record_connection(struct ccnd_handle *h, int fd,
                   struct sockaddr *who, socklen_t wholen,
@@ -1063,6 +1071,8 @@ record_connection(struct ccnd_handle *h, int fd,
     res = fcntl(fd, F_SETFL, O_NONBLOCK);
     if (res == -1)
         ccnd_msg(h, "fcntl: %s", strerror(errno));
+
+    //Shen Li: hashtb_start returns an enumerator that can be used to iterate over hash tables entries. has to call hashtb_end when done.
     hashtb_start(h->faces_by_fd, e);
     if (hashtb_seek(e, &fd, sizeof(fd), wholen) == HT_NEW_ENTRY) {
         face = e->data;
@@ -1131,6 +1141,7 @@ make_connection(struct ccnd_handle *h,
     const int wantflags = 0;
     
     /* Check for an existing usable connection */
+    //Shen Li: OK, here is an example of how to iterate over the hash table by using hashtb_next
     for (hashtb_start(h->faces_by_fd, e); e->data != NULL; hashtb_next(e)) {
         face = e->data;
         if (face->addr != NULL && face->addrlen == wholen &&
@@ -1582,6 +1593,7 @@ consume_matching_interests(struct ccnd_handle *h,
             continue;
         if (face != NULL && is_pending_on(h, p, face->faceid) == 0)
             continue;
+        //Shen Li: need to replace the ccn_content_matches_interest with our own sbf
         if (ccn_content_matches_interest(content_msg, content_size, 0, pc,
                                          p->interest_msg, p->size, NULL)) {
             for (x = p->pfl; x != NULL; x = x->next) {
@@ -1685,8 +1697,10 @@ match_interests(struct ccnd_handle *h, struct content_entry *content,
     unsigned c0 = content->comps[0];
     const unsigned char *key = content->key + c0;
     struct nameprefix_entry *npe = NULL;
+    //Shen Li: this for loop is trying to match interest names from the longest prefix. Every step truncates the tail and try again.
     for (ci = content->ncomps - 1; ci >= 0; ci--) {
         int size = content->comps[ci] - c0;
+        //Shen Li: 1. hash; 2. linear scan inside one bucket. BST can improve it.
         npe = hashtb_lookup(h->nameprefix_tab, key, size);
         if (npe != NULL)
             break;
@@ -1708,6 +1722,56 @@ match_interests(struct ccnd_handle *h, struct content_entry *content,
     }
     return(n_matched);
 }
+
+//Start: Added by Shen Li
+/**
+ * If match, this function will also schedule the sending.
+ */
+static uint8_t hermes_match_interests(struct ccnd_handle *h, struct content_entry *content,
+                                        struct ccn_parsed_ContentObject *pc,
+                                        struct face *face, struct face * from_face)
+{
+    int n_matched = 0;
+    int new_matches;
+    int ci;
+    int cm = 0;
+    unsigned c0 = content->comps[0];
+    const unsigned char *key = content->key + c0;
+    struct nameprefix_entry *npe = NULL;
+    /**
+     * content->comps is the name boundary offset. 
+     * So the below for loop starts from the longest prefix and loops till the shortest one.
+     * I will keep this functionality in the demo. 
+     * However, the hash table should be replace by bloom filters.
+     */
+    for (ci = content->ncomps - 1; ci >= 0; ci--) {
+        int size = content->comps[ci] - c0;
+        //h->nameprefix_tab is the hash table
+        //The npe also contains the interest information, hermes cannot do that. So, let's loop over faces.
+        npe = hashtb_lookup(h->nameprefix_tab, key, size);
+        if (npe != NULL)
+            break;
+    }
+    for (; npe != NULL; npe = npe->parent, ci--) {
+        if (npe->fgen != h->forward_to_gen)
+            update_forward_to(h, npe);
+        if (from_face != NULL && (npe->flags & CCN_FORW_LOCAL) != 0 &&
+            (from_face->flags & CCN_FACE_GG) == 0)
+            return(-1);
+        //Shen Li: schedule the sending
+        new_matches = consume_matching_interests(h, npe, content, pc, face);
+        if (from_face != NULL && (new_matches != 0 || ci + 1 == cm))
+            note_content_from(h, npe, from_face->faceid, ci);
+        if (new_matches != 0) {
+            cm = ci; /* update stats for this prefix and one shorter */
+            n_matched += new_matches;
+        }
+    }
+    return(n_matched);
+
+}
+
+//End: Added by Shen Li
 
 /**
  * Send a message in a PDU, possibly stuffing other interest messages into it.
@@ -1982,6 +2046,9 @@ ccnd_destroy_face(struct ccnd_handle *h, unsigned faceid)
     face = face_from_faceid(h, faceid);
     if (face == NULL)
         return(-1);
+    //Start: Added by Shen Li
+    //destroy the SBF here
+    //End: Added by Shen Li
     if ((face->flags & dgram_chk) == dgram_want) {
         hashtb_start(h->dgram_faces, e);
         hashtb_seek(e, face->addr, face->addrlen, 0);
@@ -3795,6 +3862,7 @@ propagate_interest(struct ccnd_handle *h,
         if (xres < 0) abort();
     }
     lifetime = ccn_interest_lifetime(msg, pi);
+    //Shen Li: figure out how does this function found the out going face
     outbound = get_outbound_faces(h, face, msg, pi, npe);
     if (outbound == NULL) goto Bail;
     nonce = msg + pi->offset[CCN_PI_B_Nonce];
@@ -3923,7 +3991,9 @@ nameprefix_seek(struct ccnd_handle *h, struct hashtb_enumerator *e,
     if (ncomps + 1 > comps->n)
         return(-1);
     base = comps->buf[0];
+    //Shen Li: EXAMPLE_LOOP_OVER_PREFIX
     for (i = 0; i <= ncomps; i++) {
+        //Shen Li: where did they assign the nameprefix_entry content?
         res = hashtb_seek(e, msg + base, comps->buf[i] - base, 0);
         if (res < 0)
             break;
@@ -3934,6 +4004,7 @@ nameprefix_seek(struct ccnd_handle *h, struct hashtb_enumerator *e,
             head->prev = head;
             head->npe = NULL;
             npe->parent = parent;
+            //Shen Li: so, there are many entries in nameprefix_tab that do not have a forwarding face specified?
             npe->forwarding = NULL;
             npe->fgen = h->forward_to_gen - 1;
             npe->forward_to = NULL;
@@ -4073,6 +4144,17 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
         }
         namesize = comps->buf[pi->prefix_comps] - comps->buf[0];
         h->interests_accepted += 1;
+        //Shen Li: searching PIT by using msg
+        //Shen Li: the hashtb_lookup below is not needed if sbf is used
+        /** Start: Added by Shen Li
+         *  TODO: still need to propogate the interest
+         *  My understanding is that, the msg is the pointer to the interest name, and the offset (or comps) is just an array of offsets.
+         *  A: correct, ccn_indexbuf (in csrc/include/ccn/indexbuf.h) is just an index array. 
+         *     To loop over all prefixes, search EXAMPLE_LOOP_OVER_PREFIX.
+         *  1. check the SBF of the incoming face
+         *  2. if hit, release the index buffer (by call indexbuf_release(h, comps))
+         *  3. if not, insert it into the SBF 
+         */  
         ie = hashtb_lookup(h->interest_tab, msg,
                            pi->offset[CCN_PI_B_InterestLifetime]);
         if (ie != NULL) {
@@ -4080,6 +4162,7 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
             indexbuf_release(h, comps);
             comps = NULL;
             npe = ie->ll.npe;
+            //Shen Li: the interest is already in PIT, why propagate again?
             if (drop_nonlocal_interest(h, npe, face, msg, size))
                 return;
             propagate_interest(h, face, msg, pi, npe);
@@ -4098,7 +4181,17 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
         }
         s_ok = (pi->answerfrom & CCN_AOK_STALE) != 0;
         matched = 0;
+        //Shen Li: searching PIT by using nameprefix_tab
         hashtb_start(h->nameprefix_tab, e);
+        //Shen Li: nameprefix_seek will add the entry if it does not exist. 
+        /** Shen Li
+         * added to where? PIT? but PIT is h->interest_tab. 
+         * A: both h->interest_tab and h->nameprefix_tab are hash tables for PIT. 
+         * interest_tab hashes msg. (what is msg?)
+         * nameprefix_tab hashes name components. 
+         */
+        
+        //Shen Li: nameprefix_seek only insert an empty nameprefix_entry into the nameprefix_tab table. The e points to the result node, and e->data points to the nameprefix_entry struct. 
         res = nameprefix_seek(h, e, msg, comps, pi->prefix_comps);
         npe = e->data;
         if (npe == NULL || drop_nonlocal_interest(h, npe, face, msg, size))
@@ -4179,6 +4272,11 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
                 matched = 1;
             }
         }
+        /**
+         * Shen Li: here, propogating interest. 
+         * In this case: both forwarding and forward_to are null.
+         * forwarding is a list of ccn_forwarding. forward_to is an index array of face_id
+         */
         if (!matched && npe != NULL && (pi->answerfrom & CCN_AOK_EXPIRE) == 0)
             propagate_interest(h, face, msg, pi, npe);
     Bail:
@@ -4324,6 +4422,7 @@ process_incoming_content(struct ccnd_handle *h, struct face *face,
         ccnd_msg(h, "error parsing ContentObject - code %d", res);
         goto Bail;
     }
+    //Shen Li: ccnd_meter_bump is just doing some statistics
     ccnd_meter_bump(h, face->meter[FM_DATI], 1);
     if (comps->n < 1 ||
         (keysize = comps->buf[comps->n - 1]) > 65535 - 36) {
@@ -4434,6 +4533,10 @@ Bail:
         enum cq_delay_class c;
         struct content_queue *q;
         //Shen Li: match_interests will consume the interest and sendout the content as well.
+        //Start: Added by Shen Li
+        //Here, we iterate over the faces by using face_by_fd hashtable.
+        //TODO: Use binary coding to decrease the complexity to log(n) level
+        //End: Added by Shen Li
         n_matches = match_interests(h, content, &obj, NULL, face);
         if (res == HT_NEW_ENTRY) {
             if (n_matches < 0) {

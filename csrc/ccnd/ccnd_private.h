@@ -80,6 +80,7 @@ typedef int (*ccnd_logger)(void *loggerdata, const char *format, va_list ap);
  */
 struct ccnd_handle {
     unsigned char ccnd_id[32];      /**< sha256 digest of our public key */
+    //Shen Li: fd here is short for file descriptor
     struct hashtb *faces_by_fd;     /**< keyed by fd */
     struct hashtb *dgram_faces;     /**< keyed by sockaddr */
     struct hashtb *content_tab;     /**< keyed by portion of ContentObject */
@@ -90,6 +91,7 @@ struct ccnd_handle {
     unsigned face_gen;              /**< faceid generation number */
     unsigned face_rover;            /**< for faceid allocation */
     unsigned face_limit;            /**< current number of face slots */
+    //Shen Li: Let's loop over faces_by_faceid for face_limit items
     struct face **faces_by_faceid;  /**< array with face_limit elements */
     struct ccn_scheduled_event *reaper;
     struct ccn_scheduled_event *age;
