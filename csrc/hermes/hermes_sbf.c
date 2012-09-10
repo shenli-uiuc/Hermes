@@ -7,7 +7,7 @@
  * Parameters:
  * hash: the previous hash result. 
  */
-inline uint32_t jenkins_hash(uint32_t hash, const char *key, size_t len)
+static inline uint32_t jenkins_hash(uint32_t hash, const unsigned char *key, size_t len)
 {
     uint32_t i;
     for(i = 0; i < len; ++i)
@@ -60,7 +60,21 @@ struct hermes_bloom_wire * sbf_create(uint32_t estimated_members, uint8_t bloom_
     return hbw;
 }   
 
-void sbf_insert(struct hermes_bloom_wire * hbw, const char * key, uint16_t len){
+void sbf_destroy(struct hermes_bloom_wire ** phbw){
+    struct hermes_bloom_wire * hbw = *phbw;
+    int i;
+    if(NULL == hbw)
+        return;
+
+    for( i = 0; i < hbw->bloom_num; ++i){
+        free(hbw->blooms[i]);
+    }
+    free(hbw->blooms);
+    free(hbw);
+    *phbw = NULL;
+}
+
+void sbf_insert(struct hermes_bloom_wire * hbw, const unsigned char * key, uint16_t len){
     uint8_t i, j, cnt;
     uint32_t seed;
     seed = hbw->seed;
@@ -72,7 +86,7 @@ void sbf_insert(struct hermes_bloom_wire * hbw, const char * key, uint16_t len){
     }
 }
 
-uint8_t sbf_check(struct hermes_bloom_wire * hbw, const char * key, uint16_t len){
+uint8_t sbf_check(struct hermes_bloom_wire * hbw, const unsigned char * key, uint16_t len){
     uint8_t i, cur_bloom;
     uint32_t seed;
     seed = hbw->seed;
@@ -93,13 +107,13 @@ void sbf_swap(struct hermes_bloom_wire * hbw){
     memset(hbw->blooms[old_bloom], 0, sizeof(uint8_t) * hbw->size / 8);
 }
 
-void print_status(struct hermes_bloom_wire * hbw, uint8_t keyID, const char * key){
+static void print_status(struct hermes_bloom_wire * hbw, uint8_t keyID, const unsigned char * key){
     printf("Key %d: %s is %d\n", keyID, key, sbf_check(hbw, key, strlen(key)));
 }
 
 //swapping thread is not implemented yet
 int main(){
-    const char * k1, * k2, * k3, * k4, * k5, * k6;
+    const unsigned char * k1, * k2, * k3, * k4, * k5, * k6;
     struct hermes_bloom_wire * hbw = sbf_create(1000, 3, 10, 0);
     printf("creation done!"); 
     k1 = "abcde";
@@ -125,5 +139,7 @@ int main(){
     sbf_swap(hbw);
     print_status(hbw, 4, k4);
     print_status(hbw, 6, k5);
+    sbf_destroy(&hbw);
+    printf("%d\n", hbw);
     return 0;
 }

@@ -228,6 +228,7 @@ get_ccndid(struct ccn *h, const unsigned char *ccndid, size_t ccndid_storage_siz
     return (ccndid_result_size);
 }
 
+//Shen Li: executing the ccndc command
 static struct prefix_face_list_item *prefix_face_list_item_create(struct ccn_charbuf *prefix,
                                                                   int ipproto,
                                                                   int mcast_ttl,
@@ -450,6 +451,8 @@ Cleanup:
     return (-1);
 }
 
+
+//Shen Li: ccndc command parser
 static int
 process_command_tokens(struct prefix_face_list_item *pfltail,
                        int lineno,

@@ -84,6 +84,7 @@ struct ccnd_handle {
     struct hashtb *faces_by_fd;     /**< keyed by fd */
     struct hashtb *dgram_faces;     /**< keyed by sockaddr */
     struct hashtb *content_tab;     /**< keyed by portion of ContentObject */
+    //Shen Li: For now, let's use the name FIB (nameprefix_tab) for interest propagation
     struct hashtb *nameprefix_tab;  /**< keyed by name prefix components */
     struct hashtb *interest_tab;    /**< keyed by interest msg sans Nonce */
     struct ccn_indexbuf *skiplinks; /**< skiplist for content-ordered ops */
@@ -91,7 +92,9 @@ struct ccnd_handle {
     unsigned face_gen;              /**< faceid generation number */
     unsigned face_rover;            /**< for faceid allocation */
     unsigned face_limit;            /**< current number of face slots */
-    //Shen Li: Let's loop over faces_by_faceid for face_limit items
+    /** Shen Li: Let's loop over faces_by_faceid for face_limit items 
+     *  A: in the future we should introduce the binary coding design to reduce the complexity to O(log n)
+     */
     struct face **faces_by_faceid;  /**< array with face_limit elements */
     struct ccn_scheduled_event *reaper;
     struct ccn_scheduled_event *age;
@@ -118,6 +121,7 @@ struct ccnd_handle {
     /** Next three fields are used for direct accession-to-content table */
     ccn_accession_t accession_base;
     unsigned content_by_accession_window;
+    //Shen Li: this is where the buffered contents are stored. waiting for scheduled send event
     struct content_entry **content_by_accession;
     /** The following holds stragglers that would otherwise bloat the above */
     struct hashtb *sparse_straggler_tab; /* keyed by accession */
