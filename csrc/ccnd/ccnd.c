@@ -310,6 +310,14 @@ enroll_face(struct ccnd_handle *h, struct face *face)
     unsigned i;
     unsigned n = h->face_limit;
     struct face **a = h->faces_by_faceid;
+    //Shen Li: Here we got a new face. create SBF here.
+    //Start: Added by Shen Li
+    ccnd_msg(h, "before face->hbw");
+    face->hbw = sbf_create(SBF_DEF_MEMBERS, SBF_DEF_BLOOMS, SBF_DEF_SWAP, SBF_DEF_SEED);
+    ccnd_msg(h, "after face->hbw");
+    //TODO: please note that the return value might be null if the calloc fails.
+    //End: Added by Shen Li
+
     for (i = h->face_rover; i < n; i++)
         if (a[i] == NULL) goto use_i;
     for (i = 0; i < n; i++)
@@ -349,7 +357,7 @@ use_i:
  *
  * Units are microseconds. 
  */
-static int
+    static int
 choose_face_delay(struct ccnd_handle *h, struct face *face, enum cq_delay_class c)
 {
     int shift = (c == CCN_CQ_SLOW) ? 2 : 0;
@@ -371,7 +379,7 @@ choose_face_delay(struct ccnd_handle *h, struct face *face, enum cq_delay_class 
 /**
  * Create a queue for sending content.
  */
-static struct content_queue *
+    static struct content_queue *
 content_queue_create(struct ccnd_handle *h, struct face *face, enum cq_delay_class c)
 {
     struct content_queue *q;
@@ -396,7 +404,7 @@ content_queue_create(struct ccnd_handle *h, struct face *face, enum cq_delay_cla
 /**
  * Destroy a queue.
  */
-static void
+    static void
 content_queue_destroy(struct ccnd_handle *h, struct content_queue **pq)
 {
     struct content_queue *q;
@@ -415,7 +423,7 @@ content_queue_destroy(struct ccnd_handle *h, struct content_queue **pq)
 /**
  * Close an open file descriptor quietly.
  */
-static void
+    static void
 close_fd(int *pfd)
 {
     if (*pfd != -1) {
@@ -427,19 +435,19 @@ close_fd(int *pfd)
 /**
  * Close an open file descriptor, and grumble about it.
  */
-static void
+    static void
 ccnd_close_fd(struct ccnd_handle *h, unsigned faceid, int *pfd)
 {
     int res;
-    
+
     if (*pfd != -1) {
         int linger = 0;
         setsockopt(*pfd, SOL_SOCKET, SO_LINGER,
-                   &linger, sizeof(linger));
+                &linger, sizeof(linger));
         res = close(*pfd);
         if (res == -1)
             ccnd_msg(h, "close failed for face %u fd=%d: %s (errno=%d)",
-                     faceid, *pfd, strerror(errno), errno);
+                    faceid, *pfd, strerror(errno), errno);
         else
             ccnd_msg(h, "closing fd %d while finalizing face %u", *pfd, faceid);
         *pfd = -1;
@@ -452,7 +460,7 @@ ccnd_close_fd(struct ccnd_handle *h, unsigned faceid, int *pfd)
  * This is called when an entry is deleted from one of the hash tables that
  * keep track of faces.
  */
-static void
+    static void
 finalize_face(struct hashtb_enumerator *e)
 {
     struct ccnd_handle *h = hashtb_get_param(e->ht, NULL);
@@ -461,7 +469,7 @@ finalize_face(struct hashtb_enumerator *e)
     enum cq_delay_class c;
     int recycle = 0;
     int m;
-    
+
     if (i < h->face_limit && h->faces_by_faceid[i] == face) {
         if ((face->flags & CCN_FACE_UNDECIDED) == 0)
             ccnd_face_status_change(h, face->faceid);
@@ -469,7 +477,7 @@ finalize_face(struct hashtb_enumerator *e)
             ccnd_close_fd(h, face->faceid, &face->recv_fd);
         h->faces_by_faceid[i] = NULL;
         if ((face->flags & CCN_FACE_UNDECIDED) != 0 &&
-              face->faceid == ((h->face_rover - 1) | h->face_gen)) {
+                face->faceid == ((h->face_rover - 1) | h->face_gen)) {
             /* stream connection with no ccn traffic - safe to reuse */
             recycle = 1;
             h->face_rover--;
@@ -477,8 +485,8 @@ finalize_face(struct hashtb_enumerator *e)
         for (c = 0; c < CCN_CQ_N; c++)
             content_queue_destroy(h, &(face->q[c]));
         ccnd_msg(h, "%s face id %u (slot %u)",
-            recycle ? "recycling" : "releasing",
-            face->faceid, face->faceid & MAXFACES);
+                recycle ? "recycling" : "releasing",
+                face->faceid, face->faceid & MAXFACES);
         /* Don't free face->addr; storage is managed by hash table */
     }
     else if (face->faceid != CCN_NOFACEID)
@@ -492,14 +500,14 @@ finalize_face(struct hashtb_enumerator *e)
  *
  * @returns content handle, or NULL if it is no longer available.
  */
-static struct content_entry *
+    static struct content_entry *
 content_from_accession(struct ccnd_handle *h, ccn_accession_t accession)
 {
     struct content_entry *ans = NULL;
     if (accession < h->accession_base) {
         struct sparse_straggler_entry *entry;
         entry = hashtb_lookup(h->sparse_straggler_tab,
-                              &accession, sizeof(accession));
+                &accession, sizeof(accession));
         if (entry != NULL)
             ans = entry->content;
     }
@@ -514,7 +522,7 @@ content_from_accession(struct ccnd_handle *h, ccn_accession_t accession)
 /**
  *  Sweep old entries out of the direct accession-to-content table
  */
-static void
+    static void
 cleanout_stragglers(struct ccnd_handle *h)
 {
     ccn_accession_t accession;
@@ -557,7 +565,7 @@ cleanout_stragglers(struct ccnd_handle *h)
 /**
  *  Prevent the direct accession-to-content table from becoming too sparse
  */
-static int
+    static int
 cleanout_empties(struct ccnd_handle *h)
 {
     unsigned i = 0;
@@ -583,7 +591,7 @@ cleanout_empties(struct ccnd_handle *h)
  * Assign an accession number to a content object
  */
 //Shen Li: This is where the content is buffered for later sending event. The buffer is h->content_by_accession
-static void
+    static void
 enroll_content(struct ccnd_handle *h, struct content_entry *content)
 {
     unsigned new_window;
@@ -593,7 +601,7 @@ enroll_content(struct ccnd_handle *h, struct content_entry *content)
     unsigned j = 0;
     unsigned window = h->content_by_accession_window;
     if ((content->accession - h->accession_base) >= window &&
-          cleanout_empties(h) < 0) {
+            cleanout_empties(h) < 0) {
         if (content->accession < h->accession_base)
             return;
         window = h->content_by_accession_window;
@@ -1072,11 +1080,15 @@ record_connection(struct ccnd_handle *h, int fd,
     //Shen Li: hashtb_start returns an enumerator that can be used to iterate over hash tables entries. has to call hashtb_end when done.
     hashtb_start(h->faces_by_fd, e);
     if (hashtb_seek(e, &fd, sizeof(fd), wholen) == HT_NEW_ENTRY) {
+        /*
         //Shen Li: Here we got a new face. create SBF here.
         //Start: Added by Shen Li
+        ccnd_msg(h, "before face->hbw");
         face->hbw = sbf_create(SBF_DEF_MEMBERS, SBF_DEF_BLOOMS, SBF_DEF_SWAP, SBF_DEF_SEED);
+        ccnd_msg(h, "after face->hbw");
         //TODO: please note that the return value might be null if the calloc fails.
         //End: Added by Shen Li
+        */
         face = e->data;
         face->recv_fd = fd;
         face->sendface = CCN_NOFACEID;
@@ -1568,7 +1580,7 @@ is_pending_on(struct ccnd_handle *h, struct interest_entry *ie, unsigned faceid)
 //loop over faces to send out interests
 static uint16_t
 hermes_match_interests(struct ccnd_handle *h, struct content_entry * content){
-    uint16_t i;
+    uint16_t i, cnt;
     const unsigned char * msg = content->key;
     int keysize = content->key_size;
     unsigned limit = h->face_limit;
@@ -1580,8 +1592,10 @@ hermes_match_interests(struct ccnd_handle *h, struct content_entry * content){
             continue;
         if(sbf_check(face->hbw, msg, keysize)){
             face_send_queue_insert(h, face, content);
+            ++cnt;
         }
     }
+    return cnt;
 }
 //End: Added by Shen Li
 
@@ -1755,6 +1769,7 @@ match_interests(struct ccnd_handle *h, struct content_entry *content,
 /**
  * If match, this function will also schedule the sending.
  */
+/*
 static uint8_t hermes_match_interests(struct ccnd_handle *h, struct content_entry *content,
                                         struct ccn_parsed_ContentObject *pc,
                                         struct face *face, struct face * from_face)
@@ -1766,12 +1781,12 @@ static uint8_t hermes_match_interests(struct ccnd_handle *h, struct content_entr
     unsigned c0 = content->comps[0];
     const unsigned char *key = content->key + c0;
     struct nameprefix_entry *npe = NULL;
-    /**
-     * content->comps is the name boundary offset. 
-     * So the below for loop starts from the longest prefix and loops till the shortest one.
-     * I will keep this functionality in the demo. 
-     * However, the hash table should be replace by bloom filters.
-     */
+    //
+    // content->comps is the name boundary offset. 
+    // So the below for loop starts from the longest prefix and loops till the shortest one.
+    // I will keep this functionality in the demo. 
+    // However, the hash table should be replace by bloom filters.
+    //
     for (ci = content->ncomps - 1; ci >= 0; ci--) {
         int size = content->comps[ci] - c0;
         //h->nameprefix_tab is the hash table
@@ -1791,14 +1806,14 @@ static uint8_t hermes_match_interests(struct ccnd_handle *h, struct content_entr
         if (from_face != NULL && (new_matches != 0 || ci + 1 == cm))
             note_content_from(h, npe, from_face->faceid, ci);
         if (new_matches != 0) {
-            cm = ci; /* update stats for this prefix and one shorter */
+            cm = ci; // update stats for this prefix and one shorter 
             n_matched += new_matches;
         }
     }
     return(n_matched);
 
 }
-
+*/
 //End: Added by Shen Li
 
 /**
@@ -3848,7 +3863,93 @@ pfi_unique_nonce(struct ccnd_handle *h, struct interest_entry *ie,
 
 //Start: Added by Shen Li
 static int
-hermes_propagate_interest(struct ccnd_handle *, unsigned char msg, struct ccn_indexbuf * comps){
+hermes_propagate_interest(struct ccnd_handle * h, 
+                          unsigned char * msg,
+                          struct face * from, 
+                          struct ccn_parsed_interest * pi, 
+                          struct nameprefix_entry *npe){
+    struct interest_entry *ie = NULL;
+    struct face * face = NULL;
+    struct ccn_indexbuf *outbound = NULL;
+    ccn_wrappedtime expiry;
+    unsigned char cb[TYPICAL_NONCE_SIZE];
+    const unsigned char *nonce = NULL;
+    int n, i;
+    unsigned char * tmpMsg;
+    unsigned faceid;
+    intmax_t lifetime;
+    size_t noncesize;
+    struct pit_face_item *p = NULL;
+    int usec;
+
+    ie = (struct interest_entry *)calloc(1, sizeof(struct interest_entry));
+    ie->serial = ++(h->iserial);
+    ie->strategy.birth = h->wtnow;
+    ie->strategy.renewed = h->wtnow;
+    ie->strategy.renewals = 0;
+    //ie->interest_msg is const char *
+    tmpMsg = (unsigned char *)calloc(pi->offset[CCN_PI_B_InterestLifetime] + 1, sizeof(unsigned char));
+    ie->size = pi->offset[CCN_PI_B_InterestLifetime];
+    memcpy(tmpMsg, msg, pi->offset[CCN_PI_B_InterestLifetime]);
+    ie->interest_msg = (const unsigned char *)tmpMsg;
+    lifetime = ccn_interest_lifetime(msg, pi);
+    
+//
+    outbound = ccn_indexbuf_create();
+    for (n = npe->forward_to->n, i = 0; i < n; i++) {
+        faceid = npe->forward_to->buf[i];
+        face = face_from_faceid(h, faceid);
+        if (face != NULL && face != from) {
+            if (h->debug & 32)
+                ccnd_msg(h, "outbound.%d adding %u", __LINE__, face->faceid);
+            ccn_indexbuf_append_element(outbound, face->faceid);
+        }
+    }
+
+    nonce = msg + pi->offset[CCN_PI_B_Nonce];
+    noncesize = pi->offset[CCN_PI_E_Nonce] - pi->offset[CCN_PI_B_Nonce];
+
+    if (noncesize != 0)
+        ccn_ref_tagged_BLOB(CCN_DTAG_Nonce, msg,
+                            pi->offset[CCN_PI_B_Nonce],
+                            pi->offset[CCN_PI_E_Nonce],
+                            &nonce, &noncesize);
+    else {
+        /* This interest has no nonce; generate one before going on */
+        noncesize = (h->noncegen)(h, face, cb);
+        nonce = cb;
+    }
+    p = pfi_seek(h, ie, faceid, CCND_PFI_DNSTREAM);
+    p = pfi_set_nonce(h, ie, p, nonce, noncesize);
+    if (nonce == cb || pfi_unique_nonce(h, ie, p)) {
+        ie->strategy.renewed = h->wtnow;
+        ie->strategy.renewals += 1;
+        if ((p->pfi_flags & CCND_PFI_PENDING) == 0) {
+            p->pfi_flags |= CCND_PFI_PENDING;
+            face->pending_interests += 1;
+        }
+    }
+    else {
+        /* Nonce has been seen before; do not forward. */
+        p->pfi_flags |= CCND_PFI_SUPDATA;
+    }
+    pfi_set_expiry_from_lifetime(h, ie, p, lifetime);
+    for (i = 0; i < outbound->n; i++) {
+        p = pfi_seek(h, ie, outbound->buf[i], CCND_PFI_UPSTREAM);
+        if (wt_compare(p->expiry, h->wtnow) < 0) {
+            p->expiry = h->wtnow + 1; // ZZZZ - the +1 may be overkill here.
+            p->pfi_flags &= ~CCND_PFI_UPHUNGRY;
+        }
+    }
+    strategy_callout(h, ie, CCNST_FIRST);
+    usec = ie_next_usec(h, ie, &expiry);
+    if (ie->ev != NULL && wt_compare(expiry + 2, ie->ev->evint) < 0)
+        ccn_schedule_cancel(h->sched, ie->ev);
+    if (ie->ev == NULL)
+        ie->ev = ccn_schedule_event(h->sched, usec, do_propagate, ie, expiry);
+  
+ 
+    ccn_indexbuf_destroy(&outbound); 
     return 0;
 }
 //End: Added by Shen Li
@@ -3901,7 +4002,7 @@ propagate_interest(struct ccnd_handle *h,
         if (xres < 0) abort();
     }
     lifetime = ccn_interest_lifetime(msg, pi);
-    //Shen Li: figure out how does this function found the out going face
+    //Shen Li: figure out how does this function found the out goingface
     outbound = get_outbound_faces(h, face, msg, pi, npe);
     if (outbound == NULL) goto Bail;
     nonce = msg + pi->offset[CCN_PI_B_Nonce];
@@ -3944,6 +4045,7 @@ propagate_interest(struct ccnd_handle *h,
     if (ie->ev != NULL && wt_compare(expiry + 2, ie->ev->evint) < 0)
         ccn_schedule_cancel(h->sched, ie->ev);
     if (ie->ev == NULL)
+        //Shen Li: do_propagate is a function
         ie->ev = ccn_schedule_event(h->sched, usec, do_propagate, ie, expiry);
 Bail:
     hashtb_end(e);
@@ -4177,6 +4279,7 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
              (face->flags & CCN_FACE_GG) == 0) {
         ccnd_debug_ccnb(h, __LINE__, "interest_outofscope", face, msg, size);
         h->interests_dropped += 1;
+        indexbuf_release(h, comps);
     }
     else {
         if (h->debug & (16 | 8 | 2))
@@ -4210,14 +4313,22 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
         }
         else{
             sbf_insert(hbw, msg, size);
+            hashtb_start(h->nameprefix_tab, e);
+            res = nameprefix_seek(h, e, msg, comps, pi->prefix_comps);
+            npe = e->data;
             //In the comps (it is a ccn_indexbuf), comps->n indicates the number of components
-            hermes_propagate_interest(h, msg, comps);
+            hermes_propagate_interest(h, msg, comps, pi, npe);
+            hashtb_end(e);
+            indexbuf_release(h, comps);
+            return;
         }
-        //End: Added by Shen Li 
+    }
+        //End: Added by Shen Li
+        /* 
         ie = hashtb_lookup(h->interest_tab, msg,
                            pi->offset[CCN_PI_B_InterestLifetime]);
         if (ie != NULL) {
-            /* Since this is in the PIT, we do not need to check the CS. */
+            // Since this is in the PIT, we do not need to check the CS. 
             indexbuf_release(h, comps);
             comps = NULL;
             npe = ie->ll.npe;
@@ -4228,7 +4339,7 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
             return;
         }
         if (h->debug & 16) {
-            /* Only print details that are not already presented */
+            // Only print details that are not already presented 
             // ZZZZ - should do nifty Exclude presentation here
             ccnd_msg(h,
                      "version: %d, "
@@ -4243,13 +4354,13 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
         //Shen Li: searching FIB by using nameprefix_tab
         hashtb_start(h->nameprefix_tab, e);
         //Shen Li: nameprefix_seek will add the entry if it does not exist. 
-        /** Shen Li
-         * added to where? PIT? but PIT is h->interest_tab. 
-         * A1: both h->interest_tab and h->nameprefix_tab are hash tables for PIT. 
-         * A2: A1 is wrong. h->nameprefix_tab is the FIB, however, it contains too many redundant entries. Every passing interest is inserted into the FIB
-         * interest_tab hashes msg. (what is msg?)
-         * nameprefix_tab hashes name components. 
-         */
+        // Shen Li
+        // added to where? PIT? but PIT is h->interest_tab. 
+        // A1: both h->interest_tab and h->nameprefix_tab are hash tables for PIT. 
+        // A2: A1 is wrong. h->nameprefix_tab is the FIB, however, it contains too many redundant entries. Every passing interest is inserted into the FIB
+        // interest_tab hashes msg. (what is msg?)
+        // nameprefix_tab hashes name components. 
+        //
         
         //Shen Li: nameprefix_seek only insert an empty nameprefix_entry into the nameprefix_tab table. The e points to the result node, and e->data points to the nameprefix_entry struct. 
         res = nameprefix_seek(h, e, msg, comps, pi->prefix_comps);
@@ -4313,7 +4424,7 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
             if (last_match != NULL)
                 content = last_match;
             if (content != NULL) {
-                /* Check to see if we are planning to send already */
+                // Check to see if we are planning to send already 
                 enum cq_delay_class c;
                 for (c = 0, k = -1; c < CCN_CQ_N && k == -1; c++)
                     if (face->q[c] != NULL)
@@ -4324,7 +4435,7 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
                         if (h->debug & (32 | 8))
                             ccnd_debug_ccnb(h, __LINE__, "consume", face, msg, size);
                     }
-                    /* Any other matched interests need to be consumed, too. */
+                    // Any other matched interests need to be consumed, too. 
                     match_interests(h, content, NULL, face, NULL);
                 }
                 if ((pi->answerfrom & CCN_AOK_EXPIRE) != 0)
@@ -4332,17 +4443,17 @@ process_incoming_interest(struct ccnd_handle *h, struct face *face,
                 matched = 1;
             }
         }
-        /**
-         * Shen Li: here, propogating interest. 
-         * In this case: both forwarding and forward_to are null.
-         * forwarding is a list of ccn_forwarding. forward_to is an index array of face_id
-         */
+        //
+        // Shen Li: here, propogating interest. 
+        // In this case: both forwarding and forward_to are null.
+        // forwarding is a list of ccn_forwarding. forward_to is an index array of face_id
+        //
         if (!matched && npe != NULL && (pi->answerfrom & CCN_AOK_EXPIRE) == 0)
             propagate_interest(h, face, msg, pi, npe);
     Bail:
         hashtb_end(e);
     }
-    indexbuf_release(h, comps);
+    indexbuf_release(h, comps);*/
 }
 
 /**
@@ -4524,52 +4635,19 @@ process_incoming_content(struct ccnd_handle *h, struct face *face,
     tail = msg + keysize;
     tailsize = size - keysize;
     //Start: Added by Shen Li
-    /*
-indexbuf_release(h, comps);
-    charbuf_release(h, cb);
-    cb = NULL;
-    if (res >= 0 && content != NULL) {
-        int n_matches;
-        enum cq_delay_class c;
-        struct content_queue *q;
-        n_matches = match_interests(h, content, &obj, NULL, face);
-        if (res == HT_NEW_ENTRY) {
-            if (n_matches < 0) {
-                remove_content(h, content);
-                return;
-            }
-            if (n_matches == 0 && (face->flags & CCN_FACE_GG) == 0) {
-                content->flags |= CCN_CONTENT_ENTRY_SLOWSEND;
-                ccn_indexbuf_append_element(h->unsol, content->accession);
-            }
-        }
-        // ZZZZ - review whether the following is actually needed
-        for (c = 0; c < CCN_CQ_N; c++) {
-indexbuf_release(h, comps);
-    charbuf_release(h, cb);
-    cb = NULL;
-    if (res >= 0 && content != NULL) {
-        int n_matches;
-        enum cq_delay_class c;
-
-    */
     content = (struct content_entry *)calloc(1, sizeof(struct content_entry));
     if(NULL == content){
-        charbuf_release(h, comps);
-        charbuf_release(h, cb);
-        return;
+        goto Bail;
     }
     content->accession = ++(h->accession);
     enroll_content(h, content);
     content->ncomps = comps->n;
     content->comps = calloc(comps->n, sizeof(comps[0]));
     if(NULL == content->comps){
-        ccnd_msg(h, "could not enroll ContentObject (accession %llu)", (unsigned long long)content->accession)
+        ccnd_msg(h, "could not enroll ContentObject (accession %llu)", (unsigned long long)content->accession);
         free(content);
         content = NULL;
-        charbuf_release(h, comps);
-        charbuf_release(h, cb);
-        return;
+        goto Bail;
     }
     content->key = msg;
     content->key_size = keysize;
@@ -4579,17 +4657,19 @@ indexbuf_release(h, comps);
     }
     content_skiplist_insert(h, content);
     content->flags |= CCN_CONTENT_ENTRY_PRECIOUS;
+    hermes_match_interests(h, content);
+Bail:
     charbuf_release(h, comps);
     charbuf_release(h, cb);
     comps = NULL;
     cb = NULL;
-    hermes_match_interests(h, content){
     //End: Added by Shen Li
-    hashtb_start(h->content_tab, e);
     /*
-     *Shen Li: in our implementation or the demo, the hashtb_seek is not needed, as we do not use content store at all.
-     * In this case, the check (res == HT_OLD_ENTRY) is not needed
-     */
+    hashtb_start(h->content_tab, e);
+    //
+    //Shen Li: in our implementation or the demo, the hashtb_seek is not needed, as we do not use content store at all.
+    // In this case, the check (res == HT_OLD_ENTRY) is not needed
+    //
     //Shen Li: So, here, msg[0:keysize] is what we need? the name?
     res = hashtb_seek(e, msg, keysize, tailsize);
     //Shen Li: since the pushing content should not be inserted into the content store, it need to construct the content_entry by itself rather than using the hashtb_seek.
@@ -4601,11 +4681,11 @@ indexbuf_release(h, comps);
             ccnd_debug_ccnb(h, __LINE__, "new", face, msg, size);
             ccnd_debug_ccnb(h, __LINE__, "old", NULL, e->key, e->keysize + e->extsize);
             content = NULL;
-            hashtb_delete(e); /* XXX - Mercilessly throw away both of them. */
+            hashtb_delete(e); // XXX - Mercilessly throw away both of them. 
             res = -__LINE__;
         }
         else if ((content->flags & CCN_CONTENT_ENTRY_STALE) != 0) {
-            /* When old content arrives after it has gone stale, freshen it */
+            // When old content arrives after it has gone stale, freshen it 
             // XXX - ought to do mischief checks before this
             content->flags &= ~CCN_CONTENT_ENTRY_STALE;
             h->n_stale--;
@@ -4646,7 +4726,7 @@ indexbuf_release(h, comps);
             content->comps[i] = comps->buf[i];
         content_skiplist_insert(h, content);
         set_content_timer(h, content, &obj);
-        /* Mark public keys supplied at startup as precious. */
+        // Mark public keys supplied at startup as precious. 
         if (obj.type == CCN_CONTENT_KEY && content->accession <= (h->capacity + 7)/8)
             content->flags |= CCN_CONTENT_ENTRY_PRECIOUS;
     }
@@ -4682,17 +4762,17 @@ Bail:
             if (q != NULL) {
                 i = ccn_indexbuf_member(q->send_queue, content->accession);
                 if (i >= 0) {
-                    /*
-                     * In the case this consumed any interests from this source,
-                     * don't send the content back
-                     */
+                    //
+                    // In the case this consumed any interests from this source,
+                    // don't send the content back
+                    //
                     if (h->debug & 8)
                         ccnd_debug_ccnb(h, __LINE__, "content_nosend", face, msg, size);
                     q->send_queue->buf[i] = 0;
                 }
             }
         }
-    }
+    }*/
 }
 
 /**
@@ -5719,7 +5799,7 @@ ccnd_create(const char *progname, ccnd_logger logger, void *loggerdata)
     param.finalize_data = h;
     //Start: Modified by Shen Li, decrease the face_limit for now. So that we do not need to loop over too many NULL items
     //h->face_limit = 1024; /* soft limit */
-    h->face_limit = 256
+    h->face_limit = 256;
     //End: Modified by Shen Li
     h->faces_by_faceid = calloc(h->face_limit, sizeof(h->faces_by_faceid[0]));
     param.finalize = &finalize_face;

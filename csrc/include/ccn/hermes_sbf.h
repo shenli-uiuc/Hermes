@@ -1,3 +1,6 @@
+#ifndef HERMES
+#define HERMES
+
 #include<stdio.h>
 #include<stdint.h>
 #include<stdlib.h>
@@ -6,7 +9,7 @@
 
 #define SBF_MAX_HASH 10  /* The max number of hash functions*/
 #define SBF_MAX_SIZE (1 << 28)  /* The size of bloom filter might be much larger in real use cases */
-#define SBF_LOAD_FACTOR 25 /* m = 25n: This leads to roughly 0.0001 false positive rate  */
+#define SBF_LOAD_FACTOR 24 /* m = 24n: This leads to roughly 0.0001 false positive rate  */
 
 #define SBF_DEF_MEMBERS 1000
 #define SBF_DEF_BLOOMS 3
@@ -28,3 +31,4 @@ void sbf_insert(struct hermes_bloom_wire * hbw, const unsigned char * key, uint1
 uint8_t sbf_check(struct hermes_bloom_wire * hbw, const unsigned char * key, uint16_t len);
 void sbf_swap(struct hermes_bloom_wire * hbw);
 void sbf_destroy(struct hermes_bloom_wire ** phbw);
+#endif

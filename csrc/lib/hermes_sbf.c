@@ -1,4 +1,4 @@
-#include "hermes_sbf.h"
+#include <ccn/hermes_sbf.h>
 
 #define HERMES_SET_BIT(bloom, pos) ( bloom[pos / 8] |= (1 << (pos % 8)))
 #define HERMES_CHECK_BIT(bloom, pos) ((bloom[pos / 8] & (1 << (pos % 8))) > 0)
@@ -45,15 +45,15 @@ struct hermes_bloom_wire * sbf_create(uint32_t estimated_members, uint8_t bloom_
     hbw->bloom_num = bloom_num;
     hbw->swap_interval = swap_interval;
     hbw->blooms = (uint8_t **)calloc(bloom_num, sizeof(uint8_t *));
-    printf("%d, %d\n", sizeof(uint8_t *), sizeof(uint8_t));
-    printf("before for %d\n", bloom_num);
+    //printf("%d, %d\n", sizeof(uint8_t *), sizeof(uint8_t));
+    //printf("before for %d\n", bloom_num);
     for(i = 0; i < bloom_num; ++i){
         //printf("before alloc %d\n", i);
-        hbw->blooms[i] = (uint8_t *)calloc(hbw->size / 8, sizeof(uint8_t));
-        printf("%d\n", hbw->blooms[i]);
-        //printf("%d, %d, %d\n", i, bloom_num, hbw->size);
+        hbw->blooms[i] = (uint8_t *)calloc(((hbw->size) >> 3), sizeof(uint8_t));
+        //printf("%d\n", hbw->blooms[i]);
+        printf("%d, %d, %lld\n", i, bloom_num, hbw->size);
     }
-    printf("!!!\n");
+    //printf("!!!\n");
     hbw->cur_bloom = 0;
     printf("???\n");   
  
@@ -112,6 +112,7 @@ static void print_status(struct hermes_bloom_wire * hbw, uint8_t keyID, const un
 }
 
 //swapping thread is not implemented yet
+/*
 int main(){
     const unsigned char * k1, * k2, * k3, * k4, * k5, * k6;
     struct hermes_bloom_wire * hbw = sbf_create(1000, 3, 10, 0);
@@ -143,3 +144,4 @@ int main(){
     printf("%d\n", hbw);
     return 0;
 }
+*/

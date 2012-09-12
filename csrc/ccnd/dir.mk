@@ -71,7 +71,8 @@ ccnd.o: ccnd.c ../include/ccn/bloom.h ../include/ccn/ccn.h \
   ../include/ccn/ccnd.h ../include/ccn/face_mgmt.h \
   ../include/ccn/sockcreate.h ../include/ccn/hashtb.h \
   ../include/ccn/schedule.h ../include/ccn/reg_mgmt.h \
-  ../include/ccn/uri.h ccnd_private.h ../include/ccn/seqwriter.h
+  ../include/ccn/uri.h ccnd_private.h ../include/ccn/seqwriter.h \
+  ../include/ccn/hermes_sbf.h
 ccnd_msg.o: ccnd_msg.c ../include/ccn/ccn.h ../include/ccn/coding.h \
   ../include/ccn/charbuf.h ../include/ccn/indexbuf.h \
   ../include/ccn/ccnd.h ../include/ccn/hashtb.h ../include/ccn/uri.h \
