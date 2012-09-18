@@ -64,6 +64,13 @@ public class CCNReader {
 		return _handle.get(name, publisher, timeout);
 	}
 	
+    //Start: Added by Shen Li
+    public ContentObject hermesGet(Interest interest, long timeout) throws IOException{
+        interest.setHermesDTag();
+        return _handle.get(interest, timeout);
+    }
+    //End: Added by Shen Li
+
 	/**
 	 * Gets a ContentObject matching this interest, CURRENTLY UNVERIFIED.
 	 * @param interest interest for desired object

@@ -625,6 +625,9 @@ public class CCNSegmenter {
 		return nextIndex;
 	}
 
+    public void setHermesDTag(){
+    }
+
 	/**
 	 * Sign and output all outstanding blocks to the flow controller. This is done when the number of
 	 * blocks reaches HOLD_COUNT (see above) or we are doing a final flush of a file.
@@ -652,7 +655,7 @@ public class CCNSegmenter {
 			return;
 
 		if (_blocks.size() == 1) {
-
+            //Shen Li: Here, let's provide a function that override the contentObject type before send out the data
 			ContentObject co = _blocks.get(0);
 			co.sign(signingKey);
 			if( Log.isLoggable(Level.FINER))

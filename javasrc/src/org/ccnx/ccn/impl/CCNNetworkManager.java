@@ -1378,6 +1378,7 @@ public class CCNNetworkManager implements Runnable {
 			Interest i = new Interest(serviceKeyName);
 			i.scope(1);
 			ContentObject c = mgr.get(i, SystemConfiguration.CCNDID_DISCOVERY_TIMEOUT);
+             //Shen Li: well.... the content store is need from bootstrapping.....
 			if (null == c) {
 				String msg = formatMessage("fetchCCNDId: ccndID discovery failed due to timeout.");
 				Log.severe(Log.FAC_NETMANAGER, msg);

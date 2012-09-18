@@ -227,7 +227,14 @@ public class CCNWriter {
 			ContentKeys keys) throws SignatureException, IOException {
 		return put(name, content, type, publisher, null, freshnessSeconds, keys, null);
 	}
-	
+
+
+    //Start: Added by Shen Li
+    public ContentName hermesPut(ContentName name, byte[] content,
+                                Integer freshnessSeconds, Interest outstandingInterest) throws SignatureException, IOException{
+        return NULL;
+    }
+    //End: Added by Shen Li	
 	/**
 	 * Publish a piece of named content signed by a particular identity.
 	 * @param name name for content.

@@ -4838,6 +4838,12 @@ process_input_message(struct ccnd_handle *h, struct face *face,
         case CCN_DTAG_SequenceNumber:
             process_incoming_link_message(h, face, dtag, msg, size);
             return;
+        case HERMES_DTAG_Interest:
+            ccnd_msg(h, "================================= in HERMES_DTAG_Interest");
+            return;
+        case HERMES_DTAG_Content:
+            ccnd_msg(h, "+++++++++++++++++++++++++++++++++ in HERMES_DTAG_Interest");
+            return;
         default:
             break;
     }

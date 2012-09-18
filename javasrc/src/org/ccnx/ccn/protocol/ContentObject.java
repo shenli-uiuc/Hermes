@@ -65,6 +65,9 @@ public class ContentObject extends GenericXMLEncodable implements XMLEncodable, 
 	protected ContentName _name;
 	protected SignedInfo _signedInfo;
 	protected byte [] _content;
+    //Start: Added by Shen Li
+    long _dtag;
+    //End: Added by Shen Li
 	
 	/**
 	 * Cache of the complete ContentObject's digest. Set when first calculated.
@@ -156,11 +159,17 @@ public class ContentObject extends GenericXMLEncodable implements XMLEncodable, 
 		this(name, signedInfo, content, 0, ((null == content) ? 0 : content.length), signature);
 	}
 
+    
+
 	public ContentObject(String digestAlgorithm, // prefer OID
 			ContentName name,
 			SignedInfo signedInfo,
 			byte [] content, int offset, int length,
 			Signature signature) {
+        
+        //Start: Added by Shen Li
+        _dtag = CCNProtocolDTags.ContentObject;
+        //End: Added by Shen Li
 
 		_name = name;
 		_signedInfo = signedInfo;
@@ -202,6 +211,10 @@ public class ContentObject extends GenericXMLEncodable implements XMLEncodable, 
 			ContentName name,
 			SignedInfo signedInfo,
 			InputStream contentStream, int length) throws IOException {
+
+        //Start: Added by Shen Li
+        _dtag = CCNProtocolDTags.ContentObject;
+        //End: Added by Shen Li
 
 		_name = name;
 		_signedInfo = signedInfo;
@@ -401,8 +414,22 @@ public class ContentObject extends GenericXMLEncodable implements XMLEncodable, 
 		encoder.writeEndElement();   		
 	}
 
+    /* Commented by Shen Li
 	@Override
 	public long getElementLabel() { return CCNProtocolDTags.ContentObject; }
+    */
+
+    //Start: Added by Shen Li
+
+    public void setHermesDTag(){
+        this._dtag = CCNProtocolDTags.HermesContentObject;
+    }
+
+    @Override
+    public long getElementLabel(){
+        return this._dtag;
+    }
+    //End: Added by Shen Li
 
 	@Override
 	public boolean validate() { 

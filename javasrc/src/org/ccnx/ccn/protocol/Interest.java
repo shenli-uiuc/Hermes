@@ -62,6 +62,10 @@ public class Interest extends GenericXMLEncodable implements XMLEncodable, Compa
 	
 	public static final int DEFAULT_ANSWER_ORIGIN_KIND = ANSWER_CONTENT_STORE | ANSWER_GENERATED;
 
+    //Start: Added by Shen Li
+    protected long _dtag;
+    //End: Added by Shen Li
+
 	protected ContentName _name;
 	protected Integer _maxSuffixComponents;
 	protected Integer _minSuffixComponents;
@@ -86,6 +90,9 @@ public class Interest extends GenericXMLEncodable implements XMLEncodable, Compa
 	 */
 	public Interest(ContentName name, 
 			   PublisherID publisher) {
+        //Start: Added by Shen Li
+        _dtag = CCNProtocolDTags.Interest;
+        //End: Added by Shen Li
 		_name = name;
 		_publisher = publisher;
 	}
@@ -537,8 +544,21 @@ public class Interest extends GenericXMLEncodable implements XMLEncodable, Compa
 		encoder.writeEndElement();   		
 	}
 	
+    /* Commented by Shen Li
 	@Override
 	public long getElementLabel() { return CCNProtocolDTags.Interest; }
+    */
+    
+    public void setHermesDTag(){
+        this._dtag = CCNProtocolDTags.HermesInterest;
+    }
+
+    //Start: Added by Shen Li
+    @Override
+    public long getElementLabel(){
+        return this._dtag;
+    }
+    //End: Added by Shen Li
 
 	@Override
 	public boolean validate() {
