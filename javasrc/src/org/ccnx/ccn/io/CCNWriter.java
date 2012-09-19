@@ -232,7 +232,28 @@ public class CCNWriter {
     //Start: Added by Shen Li
     public ContentName hermesPut(ContentName name, byte[] content,
                                 Integer freshnessSeconds, Interest outstandingInterest) throws SignatureException, IOException{
-        return NULL;
+        try{
+            outstandingInterest.setHermesDTag();
+            addOutstandingInterest(outstandingInterest);
+            _segmenter.getFlowControl().addNameSpace(name);
+            _segmenter.getFlowControl().startWrite(name, Shape.STREAM); // Streams take care of this for the non-gone case.
+            _segmenter.hermesPut(name, content, 0, ((null == content) ? 0 : content.length),
+                                  true, null, freshnessSeconds, null, null, null);
+            _segmenter.getFlowControl().beforeClose();
+            _segmenter.getFlowControl().afterClose();
+            return name;
+        } catch (InvalidKeyException e) {
+            Log.info(Log.FAC_IO, "InvalidKeyException using key for publisher null .");
+            throw new SignatureException(e);
+        } catch (SignatureException e) {
+            Log.info(Log.FAC_IO, "SignatureException using key for publisher null.");
+            throw e;
+        } catch (NoSuchAlgorithmException e) {
+            Log.info(Log.FAC_IO, "NoSuchAlgorithmException using key for publisher null.");
+            throw new SignatureException(e);
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new IOException("Cannot encrypt content -- bad algorithm parameter!: " + e.getMessage());
+        }
     }
     //End: Added by Shen Li	
 	/**

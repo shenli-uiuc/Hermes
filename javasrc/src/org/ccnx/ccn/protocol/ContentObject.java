@@ -327,7 +327,11 @@ public class ContentObject extends GenericXMLEncodable implements XMLEncodable, 
 		return buildContentObject(name, contents, publisher, null, null);
 	}
 
-	public ContentObject() {} // for use by decoders
+	public ContentObject() {
+        //Start: Added by Shen Li
+        _dtag = CCNProtocolDTags.ContentObject;
+        //End: Added by Shen Li
+    } // for use by decoders
 
 	public ContentObject clone() {
 		// Constructor will clone the _content, signedInfo and signature are immutable types.

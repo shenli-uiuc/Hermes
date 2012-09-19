@@ -166,8 +166,8 @@ enum ccn_dtag {
     CCN_DTAG_SequenceNumber = 256,
     CCN_DTAG_CCNProtocolDataUnit = 17702112,
     //Start: Added by Shen Li
-    HERMES_DTAG_Interest = 257,
-    HERMES_DTAG_Content = 258
+    HERMES_DTAG_Interest = 32167,
+    HERMES_DTAG_ContentObject = 32168
     //End:Added by Shen Li
 };
 

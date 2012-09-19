@@ -370,8 +370,9 @@ public final class BinaryXMLDecoder extends GenericXMLDecoder implements XMLDeco
 		if( _elements_type[_parsingElement] == type && _elements_value[_parsingElement] == expected )
 			return;
 
+        System.out.println("Shen Li ========== type and expected " + type + ", " + expected);
 		throw new ContentDecodingException(
-				String.format("Element type mismatch: expected 0x%02x 0x%04x got type 0x%02x 0x%02x position %d",
+				String.format("Element type mismatch: expected 0x%06x 0x%06x got type 0x%06x 0x%06x position %d",
 						type, expected, _elements_type[_parsingElement],
 						_elements_value[_parsingElement], _parsingElement));
 	}

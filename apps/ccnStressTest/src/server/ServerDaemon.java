@@ -14,8 +14,8 @@ public class ServerDaemon{
 
     public static void main(String argv[]){
         try{
-            CCNQueryListener queryListener = new CCNQueryListener();
-            queryListener.start();
+            CCNDataWriter writer = new CCNDataWriter();
+            writer.start();
         }
         catch(MalformedContentNameStringException ex){
             System.out.println("MalformedContentNameStringException in ServerDaemon-Main: " + ex.getMessage());

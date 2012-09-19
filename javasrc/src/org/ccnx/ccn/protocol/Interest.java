@@ -117,7 +117,11 @@ public class Interest extends GenericXMLEncodable implements XMLEncodable, Compa
 		this(ContentName.fromURI(name), (PublisherID)null);
 	}
 
-	public Interest() {} // for use by decoders
+	public Interest() {
+        //Start: Added by Shen Li
+        _dtag = CCNProtocolDTags.Interest;
+        //End: Added by Shen Li
+    } // for use by decoders
 
 	public ContentName name() { return _name; }
 	public void name(ContentName name) { _name = name; }

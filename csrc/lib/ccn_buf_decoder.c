@@ -566,7 +566,9 @@ ccn_parse_interest(const unsigned char *msg, size_t size,
     int magic = 0;
     int ncomp = 0;
     int res;
-    if (ccn_buf_match_dtag(d, CCN_DTAG_Interest)) {
+    if (ccn_buf_match_dtag(d, CCN_DTAG_Interest) || ccn_buf_match_dtag(d, HERMES_DTAG_Interest)) {
+    //Commented by Shen Li
+    //if (ccn_buf_match_dtag(d, CCN_DTAG_Interest)) {
         if (components == NULL) {
             /* We need to have the component offsets. */
             components = ccn_indexbuf_create();
@@ -810,7 +812,9 @@ ccn_parse_ContentObject(const unsigned char *msg, size_t size,
     int res;
     x->magic = 20090415;
     x->digest_bytes = 0;
-    if (ccn_buf_match_dtag(d, CCN_DTAG_ContentObject)) {
+    if (ccn_buf_match_dtag(d, CCN_DTAG_ContentObject) || ccn_buf_match_dtag(d, HERMES_DTAG_ContentObject)) {
+    //commented by Shen Li
+    //if (ccn_buf_match_dtag(d, CCN_DTAG_ContentObject)) {
         ccn_buf_advance(d);
         res = ccn_parse_Signature(d, x);
         x->offset[CCN_PCO_B_Name] = d->decoder.token_index;

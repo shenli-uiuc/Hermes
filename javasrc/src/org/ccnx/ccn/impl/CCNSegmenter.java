@@ -297,7 +297,59 @@ public class CCNSegmenter {
 
 	public void setByteScale(int byteScale) { _byteScale = byteScale; }
 	public int getByteScale() { return _byteScale; }
+    //Shen Li: hermesPut
+    //Start: Added by Shen Li
+    public long hermesPut(
+            ContentName name, byte [] content, int offset, int length,
+            boolean lastSegments,
+            SignedInfo.ContentType type,
+            Integer freshnessSeconds,
+            KeyLocator locator,
+            PublisherPublicKeyDigest publisher,
+            ContentKeys keys)
+    throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException {
 
+        if (null == content) {
+            throw new IOException("Content cannot be null!");
+        }
+
+        if (null == publisher) {
+            publisher = _handle.keyManager().getDefaultKeyID();
+        }
+
+        if (null == locator)
+            locator = _handle.keyManager().getKeyLocator(publisher);
+
+        if (null == type) {
+            type = ContentType.DATA;
+        }
+
+        if (SegmentationProfile.isSegment(name)) {
+            Log.info("Asked to store fragments under fragment name: " + name + ". Stripping fragment information");
+        }
+
+        if (outputLength(length, keys) >= getBlockSize()) {
+            Log.info("Shen Li ================= data exceeds block size");
+            return -1; 
+        }
+        else {
+            try {
+                // We should only get here on a single-fragment object, where the lastBlocks
+                // argument is false (omitted).
+                return hermesPutFragment(name, SegmentationProfile.baseSegment(),
+                        content, offset, length, type,
+                        null, freshnessSeconds,
+                        Long.valueOf(SegmentationProfile.baseSegment()),
+                        locator, publisher, keys);
+            } catch (IOException e) {
+                Log.warning("This should not happen: put failed with an IOException.");
+                Log.warningStackTrace(e);
+                throw e;
+            }
+        }
+    }
+
+    //End: Added by Shen Li
 
 	/**
 	 * Puts a complete data item, segmenting it if necessary. The
@@ -350,36 +402,36 @@ public class CCNSegmenter {
 
 		// DKS TODO -- take encryption overhead into account
 		// DKS TODO -- hook up last segment
-		if (outputLength(length, keys) >= getBlockSize()) {
-			return fragmentedPut(name, content, offset, length, (lastSegments ? CCNSegmenter.LAST_SEGMENT : null),
-					type, freshnessSeconds, locator, publisher, keys);
-		} else {
-			try {
-				// We should only get here on a single-fragment object, where the lastBlocks
-				// argument is false (omitted).
-				return putFragment(name, SegmentationProfile.baseSegment(),
-						content, offset, length, type,
-						null, freshnessSeconds,
-						Long.valueOf(SegmentationProfile.baseSegment()),
-						locator, publisher, keys);
-			} catch (IOException e) {
-				Log.warning("This should not happen: put failed with an IOException.");
-				Log.warningStackTrace(e);
-				throw e;
-			}
-		}
-	}
+        if (outputLength(length, keys) >= getBlockSize()) {
+            return fragmentedPut(name, content, offset, length, (lastSegments ? CCNSegmenter.LAST_SEGMENT : null),
+                    type, freshnessSeconds, locator, publisher, keys);
+        } else {
+            try {
+                // We should only get here on a single-fragment object, where the lastBlocks
+                // argument is false (omitted).
+                return putFragment(name, SegmentationProfile.baseSegment(),
+                        content, offset, length, type,
+                        null, freshnessSeconds,
+                        Long.valueOf(SegmentationProfile.baseSegment()),
+                        locator, publisher, keys);
+            } catch (IOException e) {
+                Log.warning("This should not happen: put failed with an IOException.");
+                Log.warningStackTrace(e);
+                throw e;
+            }
+        }
+    }
 
-	/**
-	 * Segments content, builds segment names and ContentObjects, signs
-	 * them, and writes them to the flow controller to go out to the network.
-	 * Low-level segmentation interface. Assume arguments have been cleaned
-	 * prior to arrival -- name is not already segmented, type is set, etc.
-	 *
-	 * Starts segmentation at segment SegmentationProfile().baseSegment().
-	 * @param name name prefix to use for the segments
-	 * @param content content buffer containing content to put
-	 * @param offset offset into buffer at which to start reading content to put
+    /**
+     * Segments content, builds segment names and ContentObjects, signs
+     * them, and writes them to the flow controller to go out to the network.
+     * Low-level segmentation interface. Assume arguments have been cleaned
+     * prior to arrival -- name is not already segmented, type is set, etc.
+     *
+     * Starts segmentation at segment SegmentationProfile().baseSegment().
+     * @param name name prefix to use for the segments
+     * @param content content buffer containing content to put
+     * @param offset offset into buffer at which to start reading content to put
 	 * @param length number of bytes of buffer to put
 	 * @param finalSegmentIndex the expected segment number of the last segment of this stream,
 	 * 				null to omit, Long(-1) to set as the last segment of this put, whatever
@@ -625,8 +677,10 @@ public class CCNSegmenter {
 		return nextIndex;
 	}
 
+    //Start: Added by Shen Li
     public void setHermesDTag(){
     }
+    //End: Added by Shen Li
 
 	/**
 	 * Sign and output all outstanding blocks to the flow controller. This is done when the number of
@@ -820,6 +874,95 @@ public class CCNSegmenter {
 		}
 		return nextSegmentIndex;
 	}
+
+    //Start: Added by Shen Li
+    public long hermesPutFragment(
+            ContentName name, long segmentNumber,
+            byte [] content, int offset, int length,
+            ContentType type,
+            CCNTime timestamp,
+            Integer freshnessSeconds, Long finalSegmentIndex,
+            KeyLocator locator,
+            PublisherPublicKeyDigest publisher,
+            ContentKeys keys) throws InvalidKeyException, SignatureException,
+            NoSuchAlgorithmException, IOException, InvalidAlgorithmParameterException {
+
+        if (null == publisher) {
+            publisher = _handle.keyManager().getDefaultKeyID();
+        }
+        PrivateKey signingKey = _handle.keyManager().getSigningKey(publisher);
+
+        if (null == locator)
+            locator = _handle.keyManager().getKeyLocator(publisher);
+
+        if (null == type) {
+            type = ContentType.DATA;
+        }
+
+        ContentName rootName = SegmentationProfile.segmentRoot(name);
+        _flowControl.addNameSpace(rootName);
+
+        byte [] finalBlockID = ((null == finalSegmentIndex) ? null :
+            ((finalSegmentIndex.longValue() == LAST_SEGMENT) ?
+                    SegmentationProfile.getSegmentNumberNameComponent(segmentNumber) :
+                        SegmentationProfile.getSegmentNumberNameComponent(finalSegmentIndex)));
+
+        SignedInfo signedInfo = new SignedInfo(publisher, timestamp, type, locator,freshnessSeconds, finalBlockID);
+
+        segmentNumber = hermesNewBlock(rootName, segmentNumber,
+                signedInfo, content, offset, length, keys);
+        if (_blocks.size() >= HOLD_COUNT + 1 || null != finalSegmentIndex)
+            outputCurrentBlocks(signingKey);
+
+        return segmentNumber;
+    }
+
+    protected long hermesNewBlock(ContentName rootName,
+            long segmentNumber, SignedInfo signedInfo,
+            byte contentBlock[], int offset, int blockLength,
+            ContentKeys keys) throws InvalidKeyException, InvalidAlgorithmParameterException, ContentEncodingException {
+        int length = blockLength;
+        if (null != keys) {
+            try {
+                // Make a separate cipher, so this segmenter can be used by multiple callers at once.
+                Cipher thisCipher = keys.getSegmentEncryptionCipher(rootName, signedInfo.getPublisherKeyID(), segmentNumber);
+                // TODO -- incurs an extra copy
+                contentBlock = thisCipher.doFinal(contentBlock, offset, blockLength);
+                length = contentBlock.length;
+                offset = 0;
+
+                // Override content type to mark encryption.
+                // Note: we don't require that writers use our facilities for encryption, so
+                // content previously encrypted may not be marked as type ENCR. So on the decryption
+                // side we don't require that encrypted data be marked ENCR -- if you give us a
+                // decryption key, we'll try to decrypt it.
+                signedInfo.setType(ContentType.ENCR);
+
+            } catch (IllegalBlockSizeException e) {
+                Log.warning("Unexpected IllegalBlockSizeException for an algorithm we have already used!");
+                throw new InvalidKeyException("Unexpected IllegalBlockSizeException for an algorithm we have already used!", e);
+            } catch (BadPaddingException e) {
+                Log.warning("Unexpected BadPaddingException for an algorithm we have already used!");
+                throw new InvalidAlgorithmParameterException("Unexpected BadPaddingException for an algorithm we have already used!", e);
+            }
+
+        }
+        ContentObject co =
+            new ContentObject(
+                    SegmentationProfile.segmentName(rootName, segmentNumber),
+                    signedInfo,contentBlock, offset, length,(Signature)null);
+        //Shen Li: this ling is the only difference
+        co.setHermesDTag();
+        _blocks.add(co);
+        if (null == _firstSegment) {
+            _firstSegment = co;
+        }
+        int contentLength = co.contentLength();
+        long nextSegment = nextSegmentIndex(segmentNumber, contentLength);
+        return nextSegment;
+    }
+
+    //End: Added by Shen Li
 
 	/**
 	 * Create a ContentObject, encrypt it if requested, and add it to the list of ContentObjects

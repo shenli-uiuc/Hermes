@@ -141,6 +141,10 @@ public class CCNProtocolDTags {
 	public static final int ConfigSlice = 124;
 	public static final int ConfigSliceList = 125;
 	public static final int ConfigSliceOp = 126;
+    //Start: Added by Shen Li
+    public static final int HermesInterest = 32167;
+    public static final int HermesContentObject = 32168;
+    //End: Added by Shen Li
 
 	// Remember to keep in sync with schema/tagnames.csvsdict
 	public static final int CCNProtocolDataUnit = 17702112;

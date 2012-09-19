@@ -1283,7 +1283,7 @@ r_store_set_flatname(struct ccnr_handle *h, struct content_entry *content,
         goto Bail;    
     res = ccn_parse_ContentObject(msg, size, pco, NULL);
     if (res < 0) {
-        ccnr_msg(h, "error parsing ContentObject - code %d", res);
+        ccnr_msg(h, "3333333 error parsing ContentObject - code %d", res);
         goto Bail;
     }
     ccn_digest_ContentObject(msg, pco);
