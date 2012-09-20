@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<project name = "hermes" default="all" basedir="../">
+    <path id="libs">
+        <fileset dir="../../lib/">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+    <target name = "clean">
+        <delete dir="build/"/>
+        <mkdir dir="build/"/>
+    </target>
+    
+    <target name = "hermes_util" depends = "clean">
+        <javac srcdir="src/util/" destdir="build/" classpathref="libs" includeantruntime="false"/>
+    </target>
+
+
+    <target name = "hermes_server" depends = "hermes_util">
+        <javac srcdir="src/server" destdir="build/" classpathref="libs" includeantruntime="false"/>
+    </target>
+
+    <target name = "hermes_client" depends = "hermes_util">
+        <javac srcdir="src/client" destdir="build/" classpathref="libs" includeantruntime="false"/>
+    </target>
+
+    <target name = "all" depends="clean, hermes_util, hermes_server, hermes_client">
+    </target>
+
+    
+</project>

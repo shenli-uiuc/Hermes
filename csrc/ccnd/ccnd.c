@@ -876,8 +876,10 @@ consume_interest(struct ccnd_handle *h, struct interest_entry *ie)
     
     hashtb_start(h->interest_tab, e);
     res = hashtb_seek(e, ie->interest_msg, ie->size - 1, 1);
-    if (res != HT_OLD_ENTRY)
+    if (res != HT_OLD_ENTRY){
+        ccnd_msg(h, "============= so this is how it aborted?");
         abort();
+    }
     hashtb_delete(e);
     hashtb_end(e);
 }    
@@ -3401,23 +3403,31 @@ strategy_callout(struct ccnd_handle *h,
     unsigned amt;
     int usec;
     int usefirst;
-    
+
+    ccnd_msg(h, "======================== in strategy callout");   
+ 
     switch (op) {
         case CCNST_NOP:
             break;
         case CCNST_FIRST:
-            
+            ccnd_msg(h, "================== in case CCNST_FIRST"); 
             npe = get_fib_npe(h, ie);
+            ccnd_msg(h, "================== get_fib_npe done");
             if (npe != NULL)
                 tap = npe->tap;
+            ccnd_msg(h, "================== before ie->ll.npe");
             npe = ie->ll.npe;
+            ccnd_msg(h, "================ before npe->src");
             best = npe->src;
+            ccnd_msg(h, "================ after npe->src");
             if (best == CCN_NOFACEID)
                 best = npe->src = npe->osrc;
             /* Find our downstream; right now there should be just one. */
             for (x = ie->pfl; x != NULL; x = x->next)
                 if ((x->pfi_flags & CCND_PFI_DNSTREAM) != 0)
                     break;
+
+            ccnd_msg(h, "=============== find downstream done");
             if (x == NULL || (x->pfi_flags & CCND_PFI_PENDING) == 0) {
                 ccnd_debug_ccnb(h, __LINE__, "canthappen", NULL,
                                 ie->interest_msg, ie->size);
@@ -3434,6 +3444,7 @@ strategy_callout(struct ccnd_handle *h,
                 randrange = (randlow + 1) / 2;
             }
             nleft = 0;
+            ccnd_msg(h, "================ before for (p=ie->pfl");
             for (p = ie->pfl; p!= NULL; p = p->next) {
                 if ((p->pfi_flags & CCND_PFI_UPSTREAM) != 0) {
                     if (p->faceid == best) {
@@ -3455,6 +3466,7 @@ strategy_callout(struct ccnd_handle *h,
                     }
                 }
             }
+            ccnd_msg(h, "=================== before if(nleft > 0");
             if (nleft > 0) {
                 /* Send remainder in order, with randomized timing */
                 amt = (2 * randrange + nleft - 1) / nleft;
@@ -3482,6 +3494,11 @@ strategy_callout(struct ccnd_handle *h,
     }
 }
 
+
+
+
+
+
 /**
  * Execute the next timed action on a propagating interest.
  */
@@ -3506,6 +3523,8 @@ do_propagate(struct ccn_schedule *sched,
     unsigned life;
     unsigned mn;
     unsigned rem;
+
+    ccnd_msg(h, "++++++++++++++++++++ in do_propagate, ie addr is %d", ie);
     
     if (ie->ev == ev)
         ie->ev = NULL;
@@ -3537,6 +3556,8 @@ do_propagate(struct ccn_schedule *sched,
             if (rem * 8 <= life)
                 continue;
             /* keep track of the 2 longest-lasting downstreams */
+            ccnd_msg(h, "++++++++++++++++++++++++ d0: %d,  d1: %d,  d2: %d, %d, %d", d[0], d[1], d[2]);
+            //Shen Li: n is always 0?
             for (i = n; i > 0 && wt_compare(d[i-1]->expiry, p->expiry) < 0; i--)
                 d[i] = d[i-1];
             d[i] = p;
@@ -3546,10 +3567,12 @@ do_propagate(struct ccn_schedule *sched,
     }
     /* Send the interests out */
     upstreams = 0; /* Count unexpired upstreams */
+    ccnd_msg(h, "++++++++++++++ before send ie addr is %d", ie);
     for (p = ie->pfl; p != NULL; p = next) {
         next = p->next;
         if ((p->pfi_flags & CCND_PFI_UPSTREAM) == 0)
             continue;
+        ccnd_msg(h, "+++++++++++++++++++++++++++ in upstream loop");
         face = face_from_faceid(h, p->faceid);
         if (face == NULL || (face->flags & CCN_FACE_NOSEND) != 0) {
             pfi_destroy(h, ie, p);
@@ -3584,9 +3607,12 @@ do_propagate(struct ccn_schedule *sched,
             p->pfi_flags |= CCND_PFI_UPHUNGRY;
         }
     }
+    ccnd_msg(h, "+++++++++++++++++++++ after send ie addr is %d", ie);
     if (pending == 0 && upstreams == 0) {
         strategy_callout(h, ie, CCNST_TIMEOUT);
+        ccnd_msg(h, "+++++++++++++++ after strategy_callout in do_prop");
         consume_interest(h, ie);
+        ccnd_msg(h, "+++++++++++++ after consume interest");
         return(0);
     }
     /* Determine when we need to run again */
@@ -3730,6 +3756,7 @@ pfi_seek(struct ccnd_handle *h, struct interest_entry *ie,
         p->faceid = faceid;
         p->pfi_flags = pfi_flag;
         p->expiry = h->wtnow;
+        //Shen Li: this links p to ie
         *pp = p;
     }
     return(p);
@@ -3862,6 +3889,19 @@ pfi_unique_nonce(struct ccnd_handle *h, struct interest_entry *ie,
 }
 
 //Start: Added by Shen Li
+static void print_msg(unsigned char * msg, int len){
+    unsigned char * tmpMsg = (unsigned char *)calloc(len + 1, sizeof(unsigned char *));
+    memcpy(tmpMsg, msg, len);
+    printf("Shen Li: msg ========= %s \n", tmpMsg);
+}
+
+
+static int
+hermes_do_propagate(struct ccn_schedule *sched,
+             void *clienth,
+             struct ccn_scheduled_event *ev,
+             int flags);
+
 static int
 hermes_propagate_interest(struct ccnd_handle * h, 
                           unsigned char * msg,
@@ -3882,14 +3922,22 @@ hermes_propagate_interest(struct ccnd_handle * h,
     struct pit_face_item *p = NULL;
     int usec;
 
+
+    while(!(npe->forward_to)){
+        ccnd_msg(h, "=============== npe is %d", npe);
+        npe = npe->parent;
+    }
+
+
     ccnd_msg(h, "===================== in hermes_propagate_interest");
     ie = (struct interest_entry *)calloc(1, sizeof(struct interest_entry));
-    ccnd_msg(h, "====================== calloc done");
+    ccnd_msg(h, "====================== calloc done ie addr is %d ", ie);
     ie->serial = ++(h->iserial);
     ie->strategy.birth = h->wtnow;
     ie->strategy.renewed = h->wtnow;
     ie->strategy.renewals = 0;
     //ie->interest_msg is const char *
+    link_interest_entry_to_nameprefix(h, ie, npe);
     tmpMsg = (unsigned char *)calloc(pi->offset[CCN_PI_B_InterestLifetime] + 1, sizeof(unsigned char));
     ccnd_msg(h, "========================= tmpMsg allocated");
     ie->size = pi->offset[CCN_PI_B_InterestLifetime];
@@ -3901,9 +3949,17 @@ hermes_propagate_interest(struct ccnd_handle * h,
     ccnd_msg(h, "=============== before outbound");    
 //
     outbound = ccn_indexbuf_create();
-    for (n = npe->forward_to->n, i = 0; i < n; i++) {
+    ccnd_msg(h, "============== after outbound, npe's addr is %d", npe);
+    ccnd_msg(h, "============== forward_to addr is %d", npe->forward_to);
+
+    n = npe->forward_to->n;
+    ccnd_msg(h, "============== after assign n = %d", n );
+    for (i = 0; i < n; i++) {
+        ccnd_msg(h, "============ before faceid %d", i);
         faceid = npe->forward_to->buf[i];
+        ccnd_msg(h, "============= before from_faceid");
         face = face_from_faceid(h, faceid);
+        ccnd_msg(h, "============== after from_faceid");
         if (face != NULL && face != from) {
             if (h->debug & 32)
                 ccnd_msg(h, "outbound.%d adding %u", __LINE__, face->faceid);
@@ -3916,6 +3972,8 @@ hermes_propagate_interest(struct ccnd_handle * h,
     nonce = msg + pi->offset[CCN_PI_B_Nonce];
     noncesize = pi->offset[CCN_PI_E_Nonce] - pi->offset[CCN_PI_B_Nonce];
 
+    ccnd_msg(h, "============== nounce done");
+
     if (noncesize != 0)
         ccn_ref_tagged_BLOB(CCN_DTAG_Nonce, msg,
                             pi->offset[CCN_PI_B_Nonce],
@@ -3926,39 +3984,183 @@ hermes_propagate_interest(struct ccnd_handle * h,
         noncesize = (h->noncegen)(h, face, cb);
         nonce = cb;
     }
-    p = pfi_seek(h, ie, faceid, CCND_PFI_DNSTREAM);
+
+
+    //Shen Li: check this, whether it has assigned pit_face_item correctly, seems that p is not linked to ie yet
+    ccnd_msg(h, "============== before pfi_seek %d, faceid : %d", ie->pfl, from->faceid);
+    //Shen Li: we need both UPSTREAM and DOWNSTREAM, DOWNSREAM is where the interest comes from, UPSTREAM is where the interest should go
+    p = pfi_seek(h, ie, from->faceid, CCND_PFI_DNSTREAM);
+    ccnd_msg(h, "============== after pfi_seek %d %d", ie->pfl, ie->pfl->faceid);
     p = pfi_set_nonce(h, ie, p, nonce, noncesize);
+
+    ccnd_msg(h, "================ pfi");
+
+    //check CCND_PFI_PENDING is set
+    ccnd_msg(h, "=================== CCND_PFI_PENDING : %d", (p->pfi_flags & CCND_PFI_PENDING));
     if (nonce == cb || pfi_unique_nonce(h, ie, p)) {
         ie->strategy.renewed = h->wtnow;
         ie->strategy.renewals += 1;
         if ((p->pfi_flags & CCND_PFI_PENDING) == 0) {
             p->pfi_flags |= CCND_PFI_PENDING;
             face->pending_interests += 1;
+            ccnd_msg(h, "=================== CCND_PFI_PENDING : %d", (p->pfi_flags & CCND_PFI_PENDING));
         }
     }
     else {
         /* Nonce has been seen before; do not forward. */
         p->pfi_flags |= CCND_PFI_SUPDATA;
     }
+
+    ccnd_msg(h, "=============== before expiry");
+
     pfi_set_expiry_from_lifetime(h, ie, p, lifetime);
     for (i = 0; i < outbound->n; i++) {
+        ccnd_msg(h, "==================== upstream faceid: %d", outbound->buf[i]);
         p = pfi_seek(h, ie, outbound->buf[i], CCND_PFI_UPSTREAM);
         if (wt_compare(p->expiry, h->wtnow) < 0) {
             p->expiry = h->wtnow + 1; // ZZZZ - the +1 may be overkill here.
             p->pfi_flags &= ~CCND_PFI_UPHUNGRY;
         }
     }
+    ccnd_msg(h, "================= before strategy");
     strategy_callout(h, ie, CCNST_FIRST);
+    ccnd_msg(h, "================= before usec");
     usec = ie_next_usec(h, ie, &expiry);
+    ccnd_msg(h, "======================= before schedule");
     if (ie->ev != NULL && wt_compare(expiry + 2, ie->ev->evint) < 0)
         ccn_schedule_cancel(h->sched, ie->ev);
-    if (ie->ev == NULL)
-        ie->ev = ccn_schedule_event(h->sched, usec, do_propagate, ie, expiry);
+    if (ie->ev == NULL){
+        ie->ev = ccn_schedule_event(h->sched, usec, hermes_do_propagate, ie, expiry);
+        ccnd_msg(h, "============== after ccn_schedule_event");
+    }
   
- 
+    ccnd_msg(h, "===================== before destroy outbound") ;
     ccn_indexbuf_destroy(&outbound); 
+    ccnd_msg(h, "=================== before return");
     return 0;
 }
+
+static int
+hermes_do_propagate(struct ccn_schedule *sched,
+             void *clienth,
+             struct ccn_scheduled_event *ev,
+             int flags)
+{
+    struct ccnd_handle *h = clienth;
+    struct interest_entry *ie = ev->evdata;
+    struct face *face = NULL;
+    struct pit_face_item *p = NULL;
+    struct pit_face_item *next = NULL;
+    struct pit_face_item *d[3] = { NULL, NULL, NULL };
+    ccn_wrappedtime now;
+    int next_delay;
+    int i;
+    int n;
+    int pending;
+    int upstreams;
+    unsigned life;
+    unsigned mn;
+    unsigned rem;
+    
+    if (ie->ev == ev)
+        ie->ev = NULL;
+    if (flags & CCN_SCHEDULE_CANCEL)
+        return(0);
+    now = h->wtnow;  /* capture our reference */
+    mn = 600 * WTHZ; /* keep track of when we should wake up again */
+    pending = 0;
+    n = 0;
+    for (p = ie->pfl; p != NULL; p = next) {
+        next = p->next;
+        if ((p->pfi_flags & CCND_PFI_DNSTREAM) != 0) {
+            if (wt_compare(p->expiry, now) <= 0) {
+                if (h->debug & 2)
+                    ccnd_debug_ccnb(h, __LINE__, "interest_expiry",
+                                    face_from_faceid(h, p->faceid),
+                                    ie->interest_msg, ie->size);
+                pfi_destroy(h, ie, p);
+                continue;
+            }
+            if ((p->pfi_flags & CCND_PFI_PENDING) == 0)
+                continue;
+            rem = p->expiry - now;
+            if (rem < mn)
+                mn = rem;
+            pending++;
+            /* If this downstream will expire soon, don't use it */
+            life = p->expiry - p->renewed;
+            if (rem * 8 <= life)
+                continue;
+            /* keep track of the 2 longest-lasting downstreams */
+            for (i = n; i > 0 && wt_compare(d[i-1]->expiry, p->expiry) < 0; i--)
+                d[i] = d[i-1];
+            d[i] = p;
+            if (n < 2)
+                n++;
+        }
+    }
+    /* Send the interests out */
+    upstreams = 0; /* Count unexpired upstreams */
+    for (p = ie->pfl; p != NULL; p = next) {
+        next = p->next;
+        if ((p->pfi_flags & CCND_PFI_UPSTREAM) == 0)
+            continue;
+        face = face_from_faceid(h, p->faceid);
+        if (face == NULL || (face->flags & CCN_FACE_NOSEND) != 0) {
+            pfi_destroy(h, ie, p);
+            continue;
+        }
+        if ((face->flags & CCN_FACE_DC) != 0 &&
+            (p->pfi_flags & CCND_PFI_DCFACE) == 0) {
+            /* Add 60 ms extra delay before sending to a DC face */
+            p->expiry += (60 * WTHZ + 999) / 1000;
+            p->pfi_flags |= CCND_PFI_DCFACE;
+        }
+        if (wt_compare(now + 1, p->expiry) < 0) {
+            /* Not expired yet */
+            rem = p->expiry - now;
+            if (rem < mn)
+                mn = rem;
+            upstreams++;
+            continue;
+        }
+        for (i = 0; i < n; i++)
+            if (d[i]->faceid != p->faceid)
+                break;
+        if (i < n) {
+            p = send_interest(h, ie, d[i], p);
+            upstreams++;
+            rem = p->expiry - now;
+            if (rem < mn)
+                mn = rem;
+        }
+        else {
+            /* Upstream expired, but we have nothing to feed it. */
+            p->pfi_flags |= CCND_PFI_UPHUNGRY;
+        }
+    }
+    if (pending == 0 && upstreams == 0) {
+        strategy_callout(h, ie, CCNST_TIMEOUT);
+        p = ie->pfl;
+        while(!p){
+            next = p->next;
+            free(p);
+            p = next;
+        }
+        free(ie->interest_msg);
+        free(ie);
+        return(0);
+    }
+    /* Determine when we need to run again */
+    if (mn == 0) abort();
+    next_delay = mn * (1000000 / WTHZ);
+    ev->evint = h->wtnow + mn;
+    ie->ev = ev;
+    return(next_delay);
+}
+
+
+
 //End: Added by Shen Li
 
 /**
@@ -4175,6 +4377,7 @@ nameprefix_seek(struct ccnd_handle *h, struct hashtb_enumerator *e,
         }
         parent = npe;
     }
+    //Shen Li: returning a linked list of npes, the head is e->data
     return(res);
 }
 
@@ -4443,6 +4646,9 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
         ccn_indexbuf_destroy(&comps);
         return;
     }
+
+    print_msg(msg, size);
+     
     ccnd_msg(h, "================== before ccnd_meter_bump");
     ccnd_meter_bump(h, face->meter[FM_INTI], 1);
     if (pi->scope >= 0 && pi->scope < 2 &&
@@ -4493,8 +4699,11 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
             //In the comps (it is a ccn_indexbuf), comps->n indicates the number of components
             ccnd_msg(h, "========================= before propagate");
             hermes_propagate_interest(h, msg, comps, pi, npe);
+            ccnd_msg(h, "====================== after propagate");
             hashtb_end(e);
+            ccnd_msg(h, "=================== before release");
             indexbuf_release(h, comps);
+            ccnd_msg(h, "==================== after release");
             return;
         }
     }
