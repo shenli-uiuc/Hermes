@@ -1,0 +1,92 @@
+=======================================================================
+
+048202aa03b2088567d90401ff166b98e07158f3e0f7be5ed3c37fd29d9c1d5833c388b02aaa763806f4d76d06e0233b3d1b3a70257d81004563bc07080f00040b03825b646d4537c8ef7cdecc999b74d13698cdbff27118ec76ef656be7d7e835696f9e6fd10efa10787d4b1b30cdb2366c5dbdc8676b7f5ab7eae8e43a825b8cca30dbd33f618c0000f2faa57465737400faa57075736800faad416c69636500fa8d00000001a203e2028523a9d0f96843e103a2167084a44540a83352cd4f79910374f01d9a816a77f0e90002bab50505fe84ef120003da8d000001e201eaf2faa57465737400faa57075736800faad557365727300fabd7368656e6c693300faa54b65797300fa02b5c12e4d2e4b0023a9d0f96843e103a2167084a44540a83352cd4f79910374f01d9a816a77f0e900fabdfd04d7d61d3000000003e2028523a9d0f96843e103a2167084a44540a83352cd4f79910374f01d9a816a77f0e900000000019ae55368656e20546573742121210000
+
+<ContentObject>
+    <Signature>
+        <SignatureBits ccnbencoding="base64Binary">
+            Z9kEAf8Wa5jgcVjz4Pe+XtPDf9KdnB1YM8OIsCqqdjgG9NdtBuAjOz0bOnAlfYEA
+            RWO8BwgPAAQLA4JbZG1FN8jvfN7MmZt00TaYzb/ycRjsdu9la+fX6DVpb55v0Q76
+            EHh9SxswzbI2bF29yGdrf1q36ujkOoJbjMow29M/YYw=
+        </SignatureBits>
+    </Signature>
+    <Name>
+        <Component ccnbencoding="text">test</Component>
+        <Component ccnbencoding="text">push</Component>
+        <Component ccnbencoding="text">Alice</Component>
+        <Component ccnbencoding="base64Binary">AA==</Component>
+    </Name>
+    <SignedInfo>
+        <PublisherPublicKeyDigest ccnbencoding="base64Binary">
+            I6nQ+WhD4QOiFnCEpEVAqDNSzU95kQN08B2agWp38Ok=
+        </PublisherPublicKeyDigest>
+        <Timestamp ccnbencoding="base64Binary">BQX+hO8S</Timestamp>
+        <FinalBlockID ccnbencoding="base64Binary">AA==</FinalBlockID>
+        <KeyLocator>
+            <KeyName>
+                <Name>
+                    <Component ccnbencoding="text">test</Component>
+                    <Component ccnbencoding="text">push</Component>
+                    <Component ccnbencoding="text">Users</Component>
+                    <Component ccnbencoding="text">shenli3</Component>
+                    <Component ccnbencoding="text">Keys</Component>
+                    <Component ccnbencoding="base64Binary">
+                        wS5NLksAI6nQ+WhD4QOiFnCEpEVAqDNSzU95kQN08B2agWp38Ok=
+                    </Component>
+                    <Component ccnbencoding="base64Binary">/QTX1h0wAA==</Component>
+                </Name>
+                <PublisherPublicKeyDigest ccnbencoding="base64Binary">
+                    I6nQWhD4QOiFnCEpEVAqDNSzU95kQN08B2agWp38Ok=
+                </PublisherPublicKeyDigest>
+            </KeyName>
+        </KeyLocator>
+    </SignedInfo>
+    <Content ccnbencoding="text">Shen Test!!!</Content>
+</ContentObject>
+
+===================================================================
+
+048202aa03b2088567d90401ff166b98e07158f3e0f7be5ed3c37fd29d9c1d5833c388b02aaa763806f4d76d06e0233b3d1b3a70257d81004563bc07080f00040b03825b646d4537c8ef7cdecc999b74d13698cdbff27118ec76ef656be7d7e835696f9e6fd10efa10787d4b1b30cdb2366c5dbdc8676b7f5ab7eae8e43a825b8cca30dbd33f618c0000f2faa57465737400faa57075736800faad416c69636500fa8d0000fa0285e6add8fb384b12e564aafc4b0ee638743a7cb9b25968ee772d5a4bd00dd483ae000001a203e2028523a9d0f96843e103a2167084a44540a83352cd4f79910374f01d9a816a77f0e90002bab50505fe84ef120003da8d000001e201eaf2faa57465737400faa57075736800faad557365727300fabd7368656e6c693300faa54b65797300fa02b5c12e4d2e4b0023a9d0f96843e103a2167084a44540a83352cd4f79910374f01d9a816a77f0e900fabdfd04d7d61d3000000003e2028523a9d0f96843e103a2167084a44540a83352cd4f79910374f01d9a816a77f0e900000000019ae55368656e20546573742121210000
+
+<ContentObject>
+    <Signature>
+        <SignatureBits ccnbencoding="base64Binary">
+            Z9kEAf8Wa5jgcVjz4Pe+XtPDf9KdnB1YM8OIsCqqdjgG9NdtBuAjOz0bOnAlfYEA
+            RWO8BwgPAAQLA4JbZG1FN8jvfN7MmZt00TaYzb/ycRjsdu9la+fX6DVpb55v0Q76
+            EHh9SxswzbI2bF29yGdrf1q36ujkOoJbjMow29M/YYw=
+        </SignatureBits>
+    </Signature>
+    <Name>
+        <Component ccnbencoding="text">test</Component>
+        <Component ccnbencoding="text">push</Component>
+        <Component ccnbencoding="text">Alice</Component>
+        <Component ccnbencoding="base64Binary">AA==</Component>
+        <Component ccnbencoding="base64Binary">
+            5q3Y+zhLEuVkqvxLDuY4dDp8ubJZaO53LVpL0A3Ug64=
+        </Component>
+    </Name>
+    <SignedInfo>
+        <PublisherPublicKeyDigest ccnbencoding="base64Binary">I6nQWhD4QOiFnCEpEVAqDNSzU95kQN08B2agWp38Ok=</PublisherPublicKeyDigest>
+        <Timestamp ccnbencoding="base64Binary">BQX+hO8S</Timestamp>
+        <FinalBlockID ccnbencoding="base64Binary">AA==</FinalBlockID>
+        <KeyLocator>
+            <KeyName>
+                <Name>
+                    <Component ccnbencoding="text">test</Component>
+                    <Component ccnbencoding="text">push</Component>
+                    <Component ccnbencoding="text">Users</Component>
+                    <Component ccnbencoding="text">shenli3</Component>
+                    <Component ccnbencoding="text">Keys</Component>
+                    <Component ccnbencoding="base64Binary">
+                        wS5NLksAI6nQ+WhD4QOiFnCEpEVAqDNSzU95kQN08B2agWp38Ok=
+                    </Component>
+                    <Component ccnbencoding="base64Binary">/QTX1h0wAA==</Component>
+                </Name>
+                <PublisherPublicKeyDigest ccnbencoding="base64Binary">
+                    I6nQ+WhD4QOiFnCEpEVAqDNSzU95kQN08B2agWp38Ok=
+                </PublisherPublicKeyDigest>
+            </KeyName>
+        </KeyLocator>
+    </SignedInfo>
+    <Content ccnbencoding="text">Shen Test!!!</Content>
+</ContentObject>

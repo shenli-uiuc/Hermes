@@ -149,6 +149,10 @@ static void strategy_callout(struct ccnd_handle *h,
                              struct interest_entry *ie,
                              enum ccn_strategy_op op);
 
+//Start: Added by Shen Li:
+static void print_msg(const unsigned char *, int, int);
+//End: Added by Shen Li
+
 /**
  * Frequency of wrapped timer
  *
@@ -1581,18 +1585,21 @@ is_pending_on(struct ccnd_handle *h, struct interest_entry *ie, unsigned faceid)
 //Start: Added by Shen Li
 //loop over faces to send out interests
 static uint16_t
-hermes_match_interests(struct ccnd_handle *h, struct content_entry * content){
+hermes_match_interests(struct ccnd_handle *h, struct content_entry * content, unsigned char * msg_prefix, size_t prefix_len){
     uint16_t i, cnt;
     const unsigned char * msg = content->key;
     int keysize = content->key_size;
     unsigned limit = h->face_limit;
     struct face * face;
 
+    print_msg(msg, keysize, 10);
+    print_msg(msg, content->size, 11);
     for(i = 0; i < limit; ++i){
         face = face_from_faceid(h, i);
         if(NULL == face)
             continue;
-        if(sbf_check(face->hbw, msg, keysize)){
+        if(sbf_check(face->hbw, msg_prefix, prefix_len)){
+            ccnd_msg(h, "############### in hermes_match_interest: got hit in face %d", face->faceid);
             face_send_queue_insert(h, face, content);
             ++cnt;
         }
@@ -1741,6 +1748,7 @@ match_interests(struct ccnd_handle *h, struct content_entry *content,
     unsigned c0 = content->comps[0];
     const unsigned char *key = content->key + c0;
     struct nameprefix_entry *npe = NULL;
+    print_msg(content->key, content->size, -100);
     //Shen Li: this for loop is trying to match interest names from the longest prefix. Every step truncates the tail and try again.
     for (ci = content->ncomps - 1; ci >= 0; ci--) {
         int size = content->comps[ci] - c0;
@@ -2476,10 +2484,13 @@ ccnd_reg_prefix(struct ccnd_handle *h,
 {
     struct hashtb_enumerator ee;
     struct hashtb_enumerator *e = &ee;
-    struct ccn_forwarding *f = NULL;
+    struct ccn_forwarding *f = NULL, *tmpF = NULL;
     struct nameprefix_entry *npe = NULL;
-    int res;
+    int res, i;
     struct face *face = NULL;
+    //Start: Added by Shen Li
+    struct nameprefix_entry * tmpNpe = NULL;
+    //End: Added by Shen Li
     
     if (flags >= 0 &&
         (flags & CCN_FORW_PUBMASK) != flags)
@@ -2492,10 +2503,32 @@ ccnd_reg_prefix(struct ccnd_handle *h,
         face->flags |= CCN_FACE_DC;
     hashtb_start(h->nameprefix_tab, e);
     res = nameprefix_seek(h, e, msg, comps, ncomps);
+    //Shen Li: the return value is res == HT_OLD_ENTRY because "/test/push/User/shenli3/[key]" has been seeked. Check if the faceid is updated
+    //Start: Added by Shen Li
+    printf("In ccnd_reg_prefix: ncomps = %d, res = %d, NEW_ENTRY = %d, faceid = %d\n", ncomps, res, HT_NEW_ENTRY, faceid);
+    print_msg(msg, comps->buf[ncomps], -1);
+    for(i = 0 ; i < ncomps; ++i){
+        printf("%d, ", comps->buf[i]);
+    }
+    printf("\n");
+    //End: Added by Shen Li
     if (res >= 0) {
         res = (res == HT_OLD_ENTRY) ? CCN_FORW_REFRESHED : 0;
         npe = e->data;
         f = seek_forwarding(h, npe, faceid);
+        //Sart: Added by Shen Li
+        printf("seek_forwarding done:  f = %d, npe = %d\n", f, npe);
+        tmpNpe = npe;
+        while(tmpNpe){
+            tmpF = tmpNpe->forwarding;
+            while(tmpF){
+                printf("%d, ", tmpF->faceid);
+                tmpF = tmpF->next;
+            }
+            printf("\n");
+            tmpNpe = tmpNpe->parent;
+        }
+        //Stop: Added by Shen Li
         if (f != NULL) {
             h->forward_to_gen += 1; // XXX - too conservative, should check changes
             f->expires = expires;
@@ -3889,10 +3922,16 @@ pfi_unique_nonce(struct ccnd_handle *h, struct interest_entry *ie,
 }
 
 //Start: Added by Shen Li
-static void print_msg(unsigned char * msg, int len){
-    unsigned char * tmpMsg = (unsigned char *)calloc(len + 1, sizeof(unsigned char *));
+static void print_msg(const unsigned char * msg, int len, int id){
+    unsigned char * tmpMsg = (unsigned char *)calloc(len + 1, sizeof(unsigned char));
+    int i;
     memcpy(tmpMsg, msg, len);
-    printf("Shen Li: msg ========= %s \n", tmpMsg);
+    printf("Shen Li: msg %d, len = %d ========= %s |||| ", id, len, tmpMsg);
+    for(i = 0 ; i < len; ++i){
+        printf("%02x", msg[i]);
+    }
+    printf("\n");
+    free(tmpMsg);
 }
 
 
@@ -3921,17 +3960,20 @@ hermes_propagate_interest(struct ccnd_handle * h,
     size_t noncesize;
     struct pit_face_item *p = NULL;
     int usec;
+    struct ccn_forwarding * f;
 
-
-    while(!(npe->forward_to)){
+    while(npe && !(npe->forwarding)){
         ccnd_msg(h, "=============== npe is %d", npe);
         npe = npe->parent;
     }
+    if(!npe){
+        ccnd_msg(h, "No matching prefix found, interest has been discarded!");
+        return  -1;
+    }
 
+    //after this point, npe->forwarding is guaranteed not NULL
 
-    ccnd_msg(h, "===================== in hermes_propagate_interest");
     ie = (struct interest_entry *)calloc(1, sizeof(struct interest_entry));
-    ccnd_msg(h, "====================== calloc done ie addr is %d ", ie);
     ie->serial = ++(h->iserial);
     ie->strategy.birth = h->wtnow;
     ie->strategy.renewed = h->wtnow;
@@ -3940,7 +3982,7 @@ hermes_propagate_interest(struct ccnd_handle * h,
     link_interest_entry_to_nameprefix(h, ie, npe);
     tmpMsg = (unsigned char *)calloc(pi->offset[CCN_PI_B_InterestLifetime] + 1, sizeof(unsigned char));
     ccnd_msg(h, "========================= tmpMsg allocated");
-    ie->size = pi->offset[CCN_PI_B_InterestLifetime];
+    ie->size = pi->offset[CCN_PI_B_InterestLifetime] + 1;
     memcpy(tmpMsg, msg, pi->offset[CCN_PI_B_InterestLifetime]);
     ie->interest_msg = (const unsigned char *)tmpMsg;
     ccnd_msg(h, "=========================== memory copied");
@@ -3950,23 +3992,20 @@ hermes_propagate_interest(struct ccnd_handle * h,
 //
     outbound = ccn_indexbuf_create();
     ccnd_msg(h, "============== after outbound, npe's addr is %d", npe);
-    ccnd_msg(h, "============== forward_to addr is %d", npe->forward_to);
+    ccnd_msg(h, "============== forwarding faceid is %d", npe->forwarding->faceid);
 
-    n = npe->forward_to->n;
-    ccnd_msg(h, "============== after assign n = %d", n );
-    for (i = 0; i < n; i++) {
-        ccnd_msg(h, "============ before faceid %d", i);
-        faceid = npe->forward_to->buf[i];
-        ccnd_msg(h, "============= before from_faceid");
-        face = face_from_faceid(h, faceid);
-        ccnd_msg(h, "============== after from_faceid");
+    f = npe->forwarding;
+    while(f){
+        ccnd_msg(h, "=============== forwarding to face %d", f->faceid);
+        face = face_from_faceid(h, f->faceid);
         if (face != NULL && face != from) {
             if (h->debug & 32)
                 ccnd_msg(h, "outbound.%d adding %u", __LINE__, face->faceid);
             ccnd_msg(h, "================= before append %d, %d", i, face->faceid);
             ccn_indexbuf_append_element(outbound, face->faceid);
         }
-    }
+        f = f->next;
+    } 
     ccnd_msg(h, "=============== in propagation, get outbound done");
 
     nonce = msg + pi->offset[CCN_PI_B_Nonce];
@@ -4647,7 +4686,9 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
         return;
     }
 
-    print_msg(msg, size);
+    print_msg(msg, size, 2);
+    print_msg(msg + pi->offset[CCN_PI_B_Name], pi->offset[CCN_PI_E_Name] - pi->offset[CCN_PI_B_Name], 3);
+    print_msg(msg, pi->offset[CCN_PI_E_Name], 4);
      
     ccnd_msg(h, "================== before ccnd_meter_bump");
     ccnd_meter_bump(h, face->meter[FM_INTI], 1);
@@ -4683,7 +4724,7 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
          *  3. if not, insert it into the SBF 
          */
         ccnd_msg(h, "==================== before sbf_check");
-        if(sbf_check(hbw, msg, size)){
+        if(sbf_check(hbw, msg + pi->offset[CCN_PI_B_Name], pi->offset[CCN_PI_E_Name] - pi->offset[CCN_PI_B_Name] - 1)){
             ccnd_msg(h, "====================== sbf hit");
             //in PIT: Hermes will not propagate the interest again if it is already in PIT
             indexbuf_release(h, comps);
@@ -4692,7 +4733,7 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
         }
         else{
             ccnd_msg(h, "======================== sbf miss");
-            sbf_insert(hbw, msg, size);
+            sbf_insert(hbw, msg + pi->offset[CCN_PI_B_Name], pi->offset[CCN_PI_E_Name] - pi->offset[CCN_PI_B_Name] - 1);
             hashtb_start(h->nameprefix_tab, e);
             res = nameprefix_seek(h, e, msg, comps, pi->prefix_comps);
             npe = e->data;
@@ -4987,7 +5028,9 @@ static void
 hermes_process_incoming_content(struct ccnd_handle *h, struct face *face,
                          unsigned char *wire_msg, size_t wire_size)
 {
-    unsigned char *msg;
+    unsigned char * msg, * tmpKey;
+    unsigned char * msg_prefix;
+    size_t prefix_len;
     size_t size;
     struct hashtb_enumerator ee;
     struct hashtb_enumerator *e = &ee;
@@ -5009,6 +5052,10 @@ hermes_process_incoming_content(struct ccnd_handle *h, struct face *face,
         ccnd_msg(h, "222222222 error parsing ContentObject - code %d", res);
         goto Bail;
     }
+    msg_prefix = msg + obj.offset[CCN_PCO_B_Name];
+    prefix_len = obj.offset[HERMES_PCO_E_Name] - obj.offset[CCN_PCO_B_Name];
+    print_msg(msg + obj.offset[CCN_PCO_B_Name], obj.offset[HERMES_PCO_E_Name] - obj.offset[CCN_PCO_B_Name], 8);
+    print_msg(msg, obj.offset[HERMES_PCO_E_Name], 9);
     //Shen Li: ccnd_meter_bump is just doing some statistics
     ccnd_meter_bump(h, face->meter[FM_DATI], 1);
     if (comps->n < 1 ||
@@ -5025,6 +5072,8 @@ hermes_process_incoming_content(struct ccnd_handle *h, struct face *face,
         ccnd_debug_ccnb(h, __LINE__, "indigestible", face, msg, size);
         goto Bail;
     }
+
+
     i = comps->buf[comps->n - 1];
     ccn_charbuf_append(cb, msg, i);
     ccn_charbuf_append_tt(cb, CCN_DTAG_Component, CCN_DTAG);
@@ -5065,7 +5114,9 @@ hermes_process_incoming_content(struct ccnd_handle *h, struct face *face,
         content = NULL;
         goto Bail;
     }
-    content->key = msg;
+    tmpKey = (unsigned char *)calloc(size, sizeof(unsigned char));
+    memcpy(tmpKey, msg, size);
+    content->key = tmpKey;
     content->key_size = keysize;
     content->size = size;
     for(i = 0; i < content->ncomps; ++i){
@@ -5073,9 +5124,12 @@ hermes_process_incoming_content(struct ccnd_handle *h, struct face *face,
     }
     content_skiplist_insert(h, content);
     content->flags |= CCN_CONTENT_ENTRY_PRECIOUS;
-    hermes_match_interests(h, content);
+    ccnd_msg(h, "#################### before hermes_match_interests");
+    hermes_match_interests(h, content, msg_prefix, prefix_len);
 Bail:
+    ccnd_msg(h, "###################in Bail");
     charbuf_release(h, comps);
+    //Shen Li: content->key  still points to cb->buf
     charbuf_release(h, cb);
     comps = NULL;
     cb = NULL;
@@ -5114,6 +5168,7 @@ process_input_message(struct ccnd_handle *h, struct face *face,
         return;
     }
     dtag = d->numval;
+    print_msg(msg, size, 1);
     switch (dtag) {
         case CCN_DTAG_CCNProtocolDataUnit:
             if (!pdu_ok)
@@ -5292,7 +5347,7 @@ process_input_buffer(struct ccnd_handle *h, struct face *face)
         process_input_message(h, face, msg + d->index - dres, dres, 0);
     }
     if (d->index != size) {
-        ccnd_msg(h, "protocol error on face %u (state %d), discarding %d bytes",
+        ccnd_msg(h, "111111 protocol error on face %u (state %d), discarding %d bytes",
                      face->faceid, d->state, (int)(size - d->index));
         // XXX - perhaps this should be a fatal error.
     }
@@ -5374,23 +5429,32 @@ process_input(struct ccnd_handle *h, int fd)
             ccnd_stats_handle_http_connection(h, face);
             return;
         }
+        print_msg(buf, res, 0);
+        ccnd_msg(h, "???????????????? before first ccn_skeleton_decode d->state = %d, res = %d, face->faceid = %d", d->state, res, face->faceid);
         dres = ccn_skeleton_decode(d, buf, res);
+        ccnd_msg(h, "???????????????????? before while face->flags : %d, d->state: %d", face->flags, d->state);
         while (d->state == 0) {
+            ccnd_msg(h, "????????????????????? before process msgstart: %d, d->index: %d, dres: %d, face->inbuf->length: %d", msgstart, d->index, dres, face->inbuf->length);
             process_input_message(h, source,
                                   face->inbuf->buf + msgstart,
                                   d->index - msgstart,
                                   (face->flags & CCN_FACE_LOCAL) != 0);
+            ccnd_msg(h, "?????????????????????  after process msgstart: %d, d->index: %d, dres: %d, face->inbuf->length: %d", msgstart, d->index, dres, face->inbuf->length);
             msgstart = d->index;
             if (msgstart == face->inbuf->length) {
                 face->inbuf->length = 0;
+                ccnd_msg(h, "!!!!!!!!!!!!!!!!!! face %d inbuf length cleaned %d", face->faceid, face->inbuf->length);
                 return;
             }
             dres = ccn_skeleton_decode(d,
                     face->inbuf->buf + d->index, // XXX - msgstart and d->index are the same here - use msgstart
                     res = face->inbuf->length - d->index);  // XXX - why is res set here?
+            ccnd_msg(h, "??????????????????? d->state: %d", d->state);
         }
+        ccnd_msg(h, "???????????????????? after while face->flags : %d", face->flags);
+        //Shen Li: why CCN_FACE_DGRAM is an error?
         if ((face->flags & CCN_FACE_DGRAM) != 0) {
-            ccnd_msg(h, "protocol error on face %u, discarding %u bytes",
+            ccnd_msg(h, "222222 protocol error on face %u, discarding %u bytes",
                 source->faceid,
                 (unsigned)(face->inbuf->length));  // XXX - Should be face->inbuf->length - d->index (or msgstart)
             face->inbuf->length = 0;
@@ -5398,7 +5462,7 @@ process_input(struct ccnd_handle *h, int fd)
             return;
         }
         else if (d->state < 0) {
-            ccnd_msg(h, "protocol error on face %u", source->faceid);
+            ccnd_msg(h, "333333333 protocol error on face %u", source->faceid);
             shutdown_client_fd(h, fd);
             return;
         }

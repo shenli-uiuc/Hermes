@@ -70,6 +70,7 @@ ccn_skeleton_decode(struct ccn_skeleton_decoder *d,
         state = d->state & 0xFF;
     }
     while (i < n) {
+        //printf("[[[[[[[[[[[[[[[[ i = %d, p[i] = %d, p[i] = %c, state = %d\n", i, p[i], p[i], state);
         switch (state) {
             case CCN_DSTATE_INITIAL:
             case CCN_DSTATE_NEWTOKEN: /* start new thing */
@@ -115,6 +116,7 @@ ccn_skeleton_decode(struct ccn_skeleton_decoder *d,
                     numval = (numval << (7-CCN_TT_BITS)) +
                              ((c >> CCN_TT_BITS) & CCN_MAX_TINY);
                     c &= CCN_TT_MASK;
+                    //printf("[[[[[[[[[[[[[[[[[[[[[ before switch(c): c = %d, i = %d, state = %d\n", c, i, state);
                     switch (c) {
                         case CCN_EXT:
                             if (tagstate == 1) {
@@ -181,6 +183,7 @@ ccn_skeleton_decode(struct ccn_skeleton_decoder *d,
                             state = CCN_DSTATE_TAGNAME;
                             break;
                         default:
+                            printf("!!!!!!!!!!!!!!!!!!!!! CCN_DSTATE_ERR_CODING");
                             state = CCN_DSTATE_ERR_CODING;
                     }
                     if (pause) {
@@ -249,6 +252,7 @@ ccn_skeleton_decode(struct ccn_skeleton_decoder *d,
     }
     if (state < 0)
         tagstate = pause = 0;
+    //printf("************* before d->state set, state = %d, pause = %d, tagstate = %d\n", state, pause, tagstate);
     d->state = state | pause | (tagstate << 8); 
     d->numval = numval;
     d->index += i;

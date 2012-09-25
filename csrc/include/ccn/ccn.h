@@ -674,14 +674,15 @@ enum ccn_parsed_content_object_offsetid {
     CCN_PCO_E_SignedInfo,
     CCN_PCO_B_Content,
     CCN_PCO_E_Content,
-    CCN_PCO_E
+    CCN_PCO_E,
+    HERMES_PCO_E_Name
 };
 
 struct ccn_parsed_ContentObject {
     int magic;
     enum ccn_content_type type;
     int name_ncomps;
-    unsigned short offset[CCN_PCO_E+1];
+    unsigned short offset[CCN_PCO_E+2]; //Shen Li: Modified from +1 to + 2 to include HERMES_PCO_E_Name
     unsigned char digest[32];	/* Computed only when needed */
     int digest_bytes;
 };

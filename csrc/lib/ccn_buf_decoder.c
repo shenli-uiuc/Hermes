@@ -565,7 +565,7 @@ ccn_parse_interest(const unsigned char *msg, size_t size,
     struct ccn_buf_decoder *d = ccn_buf_decoder_start(&decoder, msg, size);
     int magic = 0;
     int ncomp = 0;
-    int res;
+    int res, i;
     if (ccn_buf_match_dtag(d, CCN_DTAG_Interest) || ccn_buf_match_dtag(d, HERMES_DTAG_Interest)) {
     //Commented by Shen Li
     //if (ccn_buf_match_dtag(d, CCN_DTAG_Interest)) {
@@ -581,6 +581,15 @@ ccn_parse_interest(const unsigned char *msg, size_t size,
         interest->offset[CCN_PI_B_Name] = d->decoder.element_index;
         interest->offset[CCN_PI_B_Component0] = d->decoder.index;
         ncomp = ccn_parse_Name(d, components);
+        //Start: Added by Shen Li
+        printf("((((((((((((( In ccn_parse_interest ncomp = %d, %d, components: ", ncomp, components->n); 
+        if(components){
+            for(i = 0; i < components->n; ++i){
+                printf("%d, ", components->buf[i]);
+            }
+        }
+        printf("||\n");
+        //End: Added by Shen Li
         if (d->decoder.state < 0) {
             memset(interest->offset, 0, sizeof(interest->offset));
             return(d->decoder.state);
@@ -809,7 +818,7 @@ ccn_parse_ContentObject(const unsigned char *msg, size_t size,
 {
     struct ccn_buf_decoder decoder;
     struct ccn_buf_decoder *d = ccn_buf_decoder_start(&decoder, msg, size);
-    int res;
+    int res, i;
     x->magic = 20090415;
     x->digest_bytes = 0;
     if (ccn_buf_match_dtag(d, CCN_DTAG_ContentObject) || ccn_buf_match_dtag(d, HERMES_DTAG_ContentObject)) {
@@ -820,6 +829,17 @@ ccn_parse_ContentObject(const unsigned char *msg, size_t size,
         x->offset[CCN_PCO_B_Name] = d->decoder.token_index;
         x->offset[CCN_PCO_B_Component0] = d->decoder.index;
         res = ccn_parse_Name(d, components);
+        //Start: Added by Shen Li
+        printf("((((((((((((( In ccn_parse_ContentObject res = %d, addr = %d, components: ", res, components);
+        if(components){
+            for(i = 0; i < res; ++i){
+                printf("i = %d: %d, ", i, components->buf[i]);
+            }
+        printf("||\n");
+        printf("d->decoder.token_index = %d, picked is %d\n", d->decoder.token_index, components->buf[res - 1]);
+        x->offset[HERMES_PCO_E_Name] = components->buf[res - 1];
+        }
+        //End: Added by Shen Li
         if (res < 0)
             d->decoder.state = -__LINE__;
         x->name_ncomps = res;

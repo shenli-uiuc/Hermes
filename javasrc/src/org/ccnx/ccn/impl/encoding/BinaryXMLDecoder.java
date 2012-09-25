@@ -101,6 +101,26 @@ public final class BinaryXMLDecoder extends GenericXMLDecoder implements XMLDeco
 				return co;
 			}
 
+            //Start: Added by Shen Li
+            if( _elements_value[_parsingElement] == CCNProtocolDTags.HermesInterest ) {
+                Log.fine(Log.FAC_ENCODING, "Decoding INTEREST");
+
+                Interest interest = new Interest();
+                interest.setHermesDTag();
+                interest.decode(this);
+                return interest;
+            }
+
+            if( _elements_value[_parsingElement]  == CCNProtocolDTags.HermesContentObject ) {
+                Log.fine(Log.FAC_ENCODING, "Decoding ContentObject");
+
+                ContentObject co = new ContentObject();
+                co.setHermesDTag();
+                co.decode(this);
+                return co;
+            }
+            //End: Added by Shen Li
+
 			Log.severe(Log.FAC_ENCODING,
 					String.format("Error decoding packet - unknown element 0x%02x 0x%04x position %d",
 							_elements_type[_parsingElement], _elements_value[_parsingElement],
