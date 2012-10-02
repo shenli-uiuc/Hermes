@@ -151,6 +151,7 @@ static void strategy_callout(struct ccnd_handle *h,
 
 //Start: Added by Shen Li:
 static void print_msg(const unsigned char *, int, int);
+static void heremes_interest_destroy(struct interest_entry *);
 //End: Added by Shen Li
 
 /**
@@ -925,10 +926,41 @@ link_interest_entry_to_nameprefix(struct ccnd_handle *h,
     ll->npe = npe;
 }
 
+//Start: Added by Shen Li
+//1. unlink the ie from npe: 
+//      as ie is created dynamically for each incoming_interest, so there is only one npe we need to worry about.
+//      That is ie->ll->npe
+//2. free the interest_entry
+//how the ie->ll works: ie->ll is the first entry in interest_entry, so &ie->ll == &ie. 
+//                      That's why npe->ie_head linked list is useful.
+static void
+hermes_interest_destroy(struct interest_entry * ie){
+    struct ielinks *ll = &ie->ll;
+    struct pit_face_item * p = NULL;   
+    struct pit_face_item * next = NULL;
+    //unlink from the list
+    ll->next->prev = ll->prev;
+    ll->prev->next = ll->next; 
+     
+    //delete
+
+    p = ie->pfl;
+    while(!p){
+        next = p->next;
+        free(p);
+        p = next;
+    }
+    free(ie->interest_msg);
+    free(ie);
+    ie = NULL;
+
+}
+//End: Added by Shen Li
+
 /**
  * Clean up an interest_entry when it is removed from its hash table.
  */
-static void
+    static void
 finalize_interest(struct hashtb_enumerator *e)
 {
     struct pit_face_item *p = NULL;
@@ -1327,6 +1359,7 @@ shutdown_client_fd(struct ccnd_handle *h, int fd)
     struct hashtb_enumerator *e = &ee;
     struct face *face = NULL;
     unsigned faceid = CCN_NOFACEID;
+    ccnd_msg(h, "==================== in shuttdown_client_fd");
     hashtb_start(h->faces_by_fd, e);
     if (hashtb_seek(e, &fd, sizeof(fd), 0) == HT_OLD_ENTRY) {
         face = e->data;
@@ -2095,13 +2128,17 @@ ccnd_destroy_face(struct ccnd_handle *h, unsigned faceid)
     struct face *face;
     int dgram_chk = CCN_FACE_DGRAM | CCN_FACE_MCAST;
     int dgram_want = CCN_FACE_DGRAM;
-    
+
+    ccnd_msg(h, "========== in ccnd_destroy_face %d", face);   
+    ccnd_msg(h, "========== face->hbw is %d", face->hbw); 
+
     face = face_from_faceid(h, faceid);
     if (face == NULL)
         return(-1);
     //Start: Added by Shen Li
     //destroy the SBF here
     sbf_destroy(&(face->hbw));
+    ccnd_msg(h, "========== after sbf_destroy");
     //End: Added by Shen Li
     if ((face->flags & dgram_chk) == dgram_want) {
         hashtb_start(h->dgram_faces, e);
@@ -2864,6 +2901,8 @@ ccnd_req_destroyface(struct ccnd_handle *h,
     struct face *reqface = NULL;
     int nackallowed = 0;
 
+    ccnd_msg(h, "In ccnd_req_destroyface");
+
     res = ccn_parse_ContentObject(msg, size, &pco, NULL);
     if (res < 0) { at = __LINE__; goto Finish; }
     res = ccn_content_get_value(msg, size, &pco, &req, &req_size);
@@ -3437,7 +3476,7 @@ strategy_callout(struct ccnd_handle *h,
     int usec;
     int usefirst;
 
-    ccnd_msg(h, "======================== in strategy callout");   
+    ccnd_msg(h, "======================== in strategy callout, op = %d", op);   
  
     switch (op) {
         case CCNST_NOP:
@@ -3763,6 +3802,7 @@ pfi_destroy(struct ccnd_handle *h, struct interest_entry *ie,
         if (face != NULL)
             face->pending_interests -= 1;
     }
+    //TODO: are the two lines below correct?? It is correct, pp is pointing to the next pointer of the previous pit_face_item
     *pp = p->next;
     free(p);
 }
@@ -4032,8 +4072,6 @@ hermes_propagate_interest(struct ccnd_handle * h,
     ccnd_msg(h, "============== after pfi_seek %d %d", ie->pfl, ie->pfl->faceid);
     p = pfi_set_nonce(h, ie, p, nonce, noncesize);
 
-    ccnd_msg(h, "================ pfi");
-
     //check CCND_PFI_PENDING is set
     ccnd_msg(h, "=================== CCND_PFI_PENDING : %d", (p->pfi_flags & CCND_PFI_PENDING));
     if (nonce == cb || pfi_unique_nonce(h, ie, p)) {
@@ -4178,16 +4216,11 @@ hermes_do_propagate(struct ccn_schedule *sched,
             p->pfi_flags |= CCND_PFI_UPHUNGRY;
         }
     }
+    //need to set the pointer to null here after free
     if (pending == 0 && upstreams == 0) {
         strategy_callout(h, ie, CCNST_TIMEOUT);
-        p = ie->pfl;
-        while(!p){
-            next = p->next;
-            free(p);
-            p = next;
-        }
-        free(ie->interest_msg);
-        free(ie);
+        hermes_interest_destroy(ie);
+        ie = NULL;
         return(0);
     }
     /* Determine when we need to run again */
@@ -4393,6 +4426,7 @@ nameprefix_seek(struct ccnd_handle *h, struct hashtb_enumerator *e,
             break;
         npe = e->data;
         if (res == HT_NEW_ENTRY) {
+            //Shen Li: set the head->next and head->prev point to head itself, because npe->ie_head is not a pointer, it is a struct item
             head = &npe->ie_head;
             head->next = head;
             head->prev = head;
@@ -4670,8 +4704,6 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
     int s_ok;
     struct interest_entry *ie = NULL;
     struct nameprefix_entry *npe = NULL;
-    struct content_entry *content = NULL;
-    struct content_entry *last_match = NULL;
     struct ccn_indexbuf *comps = indexbuf_obtain(h);
     //Start: Added by Shen Li
     struct hermes_bloom_wire * hbw = face->hbw;
@@ -5378,6 +5410,8 @@ process_input(struct ccnd_handle *h, int fd)
     struct sockaddr *addr = (struct sockaddr *)&sstor;
     int err = 0;
     socklen_t err_sz;
+
+    ccnd_msg(h, "====in process_input(");
     
     face = hashtb_lookup(h->faces_by_fd, &fd, sizeof(fd));
     if (face == NULL)
@@ -5385,8 +5419,10 @@ process_input(struct ccnd_handle *h, int fd)
     if ((face->flags & (CCN_FACE_DGRAM | CCN_FACE_PASSIVE)) == CCN_FACE_PASSIVE) {
         accept_connection(h, fd);
         check_comm_file(h);
+        ccnd_msg(h, "done in the process_input");
         return;
     }
+    ccnd_msg(h, "============ before : err_sz = sizeof(err);");
     err_sz = sizeof(err);
     res = getsockopt(face->recv_fd, SOL_SOCKET, SO_ERROR, &err, &err_sz);
     if (res >= 0 && err != 0) {
@@ -5396,6 +5432,7 @@ process_input(struct ccnd_handle *h, int fd)
             return;
         }
     }
+    ccnd_msg(h, "=========== before : d = &face->decoder;");
     d = &face->decoder;
     if (face->inbuf == NULL)
         face->inbuf = ccn_charbuf_create();
@@ -5403,18 +5440,28 @@ process_input(struct ccnd_handle *h, int fd)
         memset(d, 0, sizeof(*d));
     buf = ccn_charbuf_reserve(face->inbuf, 8800);
     memset(&sstor, 0, sizeof(sstor));
+
+    ccnd_msg(h, "============= before : res = recvfrom(face->recv_fd, buf, face->inbuf->limit - face->inbuf->length,");    
+
     res = recvfrom(face->recv_fd, buf, face->inbuf->limit - face->inbuf->length,
             /* flags */ 0, addr, &addrlen);
-    if (res == -1)
+    ccnd_msg(h, "============ after : res = recvfrom(face->recv_fd, buf, face->inbuf->limit  res = %d", res);
+    if (res == -1){
+        ccnd_msg(h, "in if");
         ccnd_msg(h, "recvfrom face %u :%s (errno = %d)",
                     face->faceid, strerror(errno), errno);
-    else if (res == 0 && (face->flags & CCN_FACE_DGRAM) == 0)
+    }
+    else if (res == 0 && (face->flags & CCN_FACE_DGRAM) == 0){
+        ccnd_msg(h, "============= before : shutdown_client_fd(h, fd);");
         shutdown_client_fd(h, fd);
+    }
     else {
+        ccnd_msg(h, "in else");
         source = get_dgram_source(h, face, addr, addrlen, (res == 1) ? 1 : 2);
         ccnd_meter_bump(h, source->meter[FM_BYTI], res);
         source->recvcount++;
         source->surplus = 0; // XXX - we don't actually use this, except for some obscure messages.
+        ccnd_msg(h, "============= after : source->surplus = 0;");
         if (res <= 1 && (source->flags & CCN_FACE_DGRAM) != 0) {
             // XXX - If the initial heartbeat gets missed, we don't realize the locality of the face.
             if (h->debug & 128)
@@ -5423,12 +5470,16 @@ process_input(struct ccnd_handle *h, int fd)
         }
         face->inbuf->length += res;
         msgstart = 0;
+        ccnd_msg(h, "============== after: msgstart = 0;");
         if (((face->flags & CCN_FACE_UNDECIDED) != 0 &&
              face->inbuf->length >= 6 &&
              0 == memcmp(face->inbuf->buf, "GET ", 4))) {
+            ccnd_msg(h, "============= before ccnd_stats_handle_http_connection");
             ccnd_stats_handle_http_connection(h, face);
+            ccnd_msg(h, "============= after ccnd_stats_handle_http_connection");
             return;
         }
+        ccnd_msg(h, "========== before print_msg buf = %d, res = %d", buf, res);
         print_msg(buf, res, 0);
         ccnd_msg(h, "???????????????? before first ccn_skeleton_decode d->state = %d, res = %d, face->faceid = %d", d->state, res, face->faceid);
         dres = ccn_skeleton_decode(d, buf, res);
@@ -5770,10 +5821,16 @@ ccnd_run(struct ccnd_handle *h)
                         shutdown_client_fd(h, h->fds[i].fd);
                     continue;
                 }
-                if (h->fds[i].revents & (POLLOUT))
+                ccnd_msg(h, "==========out if in main loop");
+                if (h->fds[i].revents & (POLLOUT)){
+                    ccnd_msg(h, "============== before do_deferred_write");
                     do_deferred_write(h, h->fds[i].fd);
-                else if (h->fds[i].revents & (POLLIN))
+                    ccnd_msg(h, "============== after do_deferred_write");
+                }
+                else if (h->fds[i].revents & (POLLIN)){
+                    ccnd_msg(h, "=============== in else");
                     process_input(h, h->fds[i].fd);
+                }
             }
         }
     }

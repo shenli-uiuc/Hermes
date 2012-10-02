@@ -1,1 +1,4 @@
 1. HermesContentObject should be freed after it has been sent.
+2. check this function ccnd_stats_handle_http_connection in ccnd_stats.c
+3. 1349193607.011927 ccnd[13299]: ccnd_collect_stats found inconsistency 1 != 0
+4. CCNDataReader connat start before ServerDaemon, otherwise ccnd crash

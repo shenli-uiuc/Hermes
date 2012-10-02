@@ -100,6 +100,8 @@ ccnd_stats_handle_http_connection(struct ccnd_handle *h, struct face *face)
     int i;
     int nspace;
     int n;
+
+    ccnd_msg(h, "========== in ccnd_stats_handle_http_connection, face = %d", face);
     
     if (face->inbuf->length < 4)
         return(-1);
@@ -107,6 +109,7 @@ ccnd_stats_handle_http_connection(struct ccnd_handle *h, struct face *face)
         ccnd_destroy_face(h, face->faceid);
         return(-1);
     }
+    ccnd_msg(h, "============ before n = sizeof(rbuf) - 1;");
     n = sizeof(rbuf) - 1;
     if (face->inbuf->length < n)
         n = face->inbuf->length;
@@ -115,38 +118,52 @@ ccnd_stats_handle_http_connection(struct ccnd_handle *h, struct face *face)
         if (rbuf[i] == ' ')
             nspace++;
     }
+    ccnd_msg(h, "============= before rbuf[i] = 0;");
     rbuf[i] = 0;
     if (nspace < 2 && i < sizeof(rbuf) - 1)
         return(-1);
     if (0 == strcmp(rbuf, "GET / ") ||
         0 == strcmp(rbuf, "GET /? ")) {
+        ccnd_msg(h, "============== in 1 if");
         response = collect_stats_html(h);
+        ccnd_msg(h, "============== before send_http_response");
         send_http_response(h, face, "text/html", response);
     }
     else if (0 == strcmp(rbuf, "GET /?l=none ")) {
+        ccnd_msg(h, "============== in 2 else if");
         ccnd_stats_http_set_debug(h, face, 0);
     }
     else if (0 == strcmp(rbuf, "GET /?l=low ")) {
+        ccnd_msg(h, "============= in 3 else if");
         ccnd_stats_http_set_debug(h, face, 1);
     }
     else if (0 == strcmp(rbuf, "GET /?l=co ")) {
+        ccnd_msg(h, "============= in 4 else if");
         ccnd_stats_http_set_debug(h, face, 4);
     }
     else if (0 == strcmp(rbuf, "GET /?l=med ")) {
+        ccnd_msg(h, "============= in 5 else if");
         ccnd_stats_http_set_debug(h, face, 71);
     }
     else if (0 == strcmp(rbuf, "GET /?l=high ")) {
+        ccnd_msg(h, "============= in 6 else if");
         ccnd_stats_http_set_debug(h, face, -1);
     }
     else if (0 == strcmp(rbuf, "GET /?f=xml ")) {
+        ccnd_msg(h, "============= in 7 else if");
         response = collect_stats_xml(h);
         send_http_response(h, face, "text/xml", response);
     }
-    else if (0 == strcmp(rbuf, "GET "))
+    else if (0 == strcmp(rbuf, "GET ")){
+        ccnd_msg(h, "============= in 8 else if");
         ccnd_send(h, face, resp404, strlen(resp404));
-    else
+    }
+    else{
+        ccnd_msg(h, "============= in 9 else");
         ccnd_send(h, face, resp405, strlen(resp405));
+    }
     face->flags |= (CCN_FACE_NOSEND | CCN_FACE_CLOSING);
+    ccnd_msg(h, "=========== before ccn_charbuf_destroy(&response);");
     ccn_charbuf_destroy(&response);
     return(0);
 }
@@ -172,6 +189,22 @@ send_http_response(struct ccnd_handle *h, struct face *face,
     ccnd_send(h, face, response->buf, response->length);
 }
 
+
+//Start: Added by Shen Li
+static void print_msg(const unsigned char * msg, int len, int id){
+    unsigned char * tmpMsg = (unsigned char *)calloc(len + 1, sizeof(unsigned char));
+    int i;
+    memcpy(tmpMsg, msg, len);
+    printf("Shen Li: msg %d, len = %d ========= %s |||| ", id, len, tmpMsg);
+    for(i = 0 ; i < len; ++i){
+        printf("%02x", msg[i]);
+    }
+    printf("\n");
+    free(tmpMsg);
+}
+
+//End: Added by Shen Li
+
 /* Common statistics collection */
 
 static int
@@ -186,14 +219,29 @@ ccnd_collect_stats(struct ccnd_handle *h, struct ccnd_stats *ans)
         struct nameprefix_entry *npe = e->data;
         struct ielinks *head = &npe->ie_head;
         struct ielinks *ll;
+        ccnd_msg(h, "================= before inner for: head = %d, npt = %d, head->next = %d", head, npe, head->next);
         for (ll = head->next; ll != head; ll = ll->next) {
+            //Shen Li: as ll is the first element in interest_entry, so &ll == &ie
             struct interest_entry *ie = (struct interest_entry *)ll;
             struct pit_face_item *p;
-            for (p = ie->pfl; p != NULL; p = p->next)
-                if ((p->pfi_flags & CCND_PFI_PENDING) != 0)
-                    if (ccnd_face_from_faceid(h, p->faceid) != NULL)
+            ccnd_msg(h, "=============== before inner inner for: ie->pfl = %d", ie->pfl);
+            for (p = ie->pfl; p != NULL; p = p->next){
+                ccnd_msg(h, "============ p = %d", p);
+                ccnd_msg(h, "============ ie->interest_msg = %d, ie->size = %d", ie->interest_msg, ie->size);
+                print_msg(ie->interest_msg, ie->size, 200);
+                ccnd_msg(h, "========== p->pfi_flags = %d, p->faceid = %d, p->next = %d", p->pfi_flags, p->faceid, p->next);
+                if ((p->pfi_flags & CCND_PFI_PENDING) != 0){
+                    ccnd_msg(h, "============= in first if");
+                    if (ccnd_face_from_faceid(h, p->faceid) != NULL){
+                        ccnd_msg(h, "=============== in second if");
                         sum += 1;
+                    }
+                }
+                ccnd_msg(h, "========== p->pfi_flags, p->faceid, p->next", p->pfi_flags, p->faceid, p->next);
+            }
+            ccnd_msg(h, "=============== after inner inner for: ie->pfl = %d", ie->pfl);
         }
+        ccnd_msg(h, "================= after inner for: head = %d, npt = %d, head->next = %d", head, npe, head->next);
     }
     ans->total_interest_counts = sum;
     hashtb_end(e);
