@@ -317,9 +317,9 @@ enroll_face(struct ccnd_handle *h, struct face *face)
     struct face **a = h->faces_by_faceid;
     //Shen Li: Here we got a new face. create SBF here.
     //Start: Added by Shen Li
-    ccnd_msg(h, "before face->hbw");
+    //ccnd_msg(h, "before face->hbw");
     face->hbw = sbf_create(SBF_DEF_MEMBERS, SBF_DEF_BLOOMS, SBF_DEF_SWAP, SBF_DEF_SEED);
-    ccnd_msg(h, "after face->hbw");
+    //ccnd_msg(h, "after face->hbw");
     //TODO: please note that the return value might be null if the calloc fails.
     //End: Added by Shen Li
 
@@ -882,7 +882,7 @@ consume_interest(struct ccnd_handle *h, struct interest_entry *ie)
     hashtb_start(h->interest_tab, e);
     res = hashtb_seek(e, ie->interest_msg, ie->size - 1, 1);
     if (res != HT_OLD_ENTRY){
-        ccnd_msg(h, "============= so this is how it aborted?");
+        //ccnd_msg(h, "============= so this is how it aborted?");
         abort();
     }
     hashtb_delete(e);
@@ -1359,7 +1359,7 @@ shutdown_client_fd(struct ccnd_handle *h, int fd)
     struct hashtb_enumerator *e = &ee;
     struct face *face = NULL;
     unsigned faceid = CCN_NOFACEID;
-    ccnd_msg(h, "==================== in shuttdown_client_fd");
+    //ccnd_msg(h, "==================== in shuttdown_client_fd");
     hashtb_start(h->faces_by_fd, e);
     if (hashtb_seek(e, &fd, sizeof(fd), 0) == HT_OLD_ENTRY) {
         face = e->data;
@@ -1632,7 +1632,7 @@ hermes_match_interests(struct ccnd_handle *h, struct content_entry * content, un
         if(NULL == face)
             continue;
         if(sbf_check(face->hbw, msg_prefix, prefix_len)){
-            ccnd_msg(h, "############### in hermes_match_interest: got hit in face %d", face->faceid);
+            //ccnd_msg(h, "############### in hermes_match_interest: got hit in face %d", face->faceid);
             face_send_queue_insert(h, face, content);
             ++cnt;
         }
@@ -2129,8 +2129,8 @@ ccnd_destroy_face(struct ccnd_handle *h, unsigned faceid)
     int dgram_chk = CCN_FACE_DGRAM | CCN_FACE_MCAST;
     int dgram_want = CCN_FACE_DGRAM;
 
-    ccnd_msg(h, "========== in ccnd_destroy_face %d", face);   
-    ccnd_msg(h, "========== face->hbw is %d", face->hbw); 
+    //ccnd_msg(h, "========== in ccnd_destroy_face %d", face);   
+    //ccnd_msg(h, "========== face->hbw is %d", face->hbw); 
 
     face = face_from_faceid(h, faceid);
     if (face == NULL)
@@ -2138,7 +2138,7 @@ ccnd_destroy_face(struct ccnd_handle *h, unsigned faceid)
     //Start: Added by Shen Li
     //destroy the SBF here
     sbf_destroy(&(face->hbw));
-    ccnd_msg(h, "========== after sbf_destroy");
+    //ccnd_msg(h, "========== after sbf_destroy");
     //End: Added by Shen Li
     if ((face->flags & dgram_chk) == dgram_want) {
         hashtb_start(h->dgram_faces, e);
@@ -2542,27 +2542,27 @@ ccnd_reg_prefix(struct ccnd_handle *h,
     res = nameprefix_seek(h, e, msg, comps, ncomps);
     //Shen Li: the return value is res == HT_OLD_ENTRY because "/test/push/User/shenli3/[key]" has been seeked. Check if the faceid is updated
     //Start: Added by Shen Li
-    printf("In ccnd_reg_prefix: ncomps = %d, res = %d, NEW_ENTRY = %d, faceid = %d\n", ncomps, res, HT_NEW_ENTRY, faceid);
-    print_msg(msg, comps->buf[ncomps], -1);
-    for(i = 0 ; i < ncomps; ++i){
-        printf("%d, ", comps->buf[i]);
-    }
-    printf("\n");
+    //printf("In ccnd_reg_prefix: ncomps = %d, res = %d, NEW_ENTRY = %d, faceid = %d\n", ncomps, res, HT_NEW_ENTRY, faceid);
+    //print_msg(msg, comps->buf[ncomps], -1);
+    //for(i = 0 ; i < ncomps; ++i){
+    //    printf("%d, ", comps->buf[i]);
+    //}
+    //printf("\n");
     //End: Added by Shen Li
     if (res >= 0) {
         res = (res == HT_OLD_ENTRY) ? CCN_FORW_REFRESHED : 0;
         npe = e->data;
         f = seek_forwarding(h, npe, faceid);
         //Sart: Added by Shen Li
-        printf("seek_forwarding done:  f = %d, npe = %d\n", f, npe);
+        //printf("seek_forwarding done:  f = %d, npe = %d\n", f, npe);
         tmpNpe = npe;
         while(tmpNpe){
             tmpF = tmpNpe->forwarding;
             while(tmpF){
-                printf("%d, ", tmpF->faceid);
+                //printf("%d, ", tmpF->faceid);
                 tmpF = tmpF->next;
             }
-            printf("\n");
+            //printf("\n");
             tmpNpe = tmpNpe->parent;
         }
         //Stop: Added by Shen Li
@@ -3476,22 +3476,22 @@ strategy_callout(struct ccnd_handle *h,
     int usec;
     int usefirst;
 
-    ccnd_msg(h, "======================== in strategy callout, op = %d", op);   
+    //ccnd_msg(h, "======================== in strategy callout, op = %d", op);   
  
     switch (op) {
         case CCNST_NOP:
             break;
         case CCNST_FIRST:
-            ccnd_msg(h, "================== in case CCNST_FIRST"); 
+            //ccnd_msg(h, "================== in case CCNST_FIRST"); 
             npe = get_fib_npe(h, ie);
-            ccnd_msg(h, "================== get_fib_npe done");
+            //ccnd_msg(h, "================== get_fib_npe done");
             if (npe != NULL)
                 tap = npe->tap;
-            ccnd_msg(h, "================== before ie->ll.npe");
+            //ccnd_msg(h, "================== before ie->ll.npe");
             npe = ie->ll.npe;
-            ccnd_msg(h, "================ before npe->src");
+            //ccnd_msg(h, "================ before npe->src");
             best = npe->src;
-            ccnd_msg(h, "================ after npe->src");
+            //ccnd_msg(h, "================ after npe->src");
             if (best == CCN_NOFACEID)
                 best = npe->src = npe->osrc;
             /* Find our downstream; right now there should be just one. */
@@ -3499,7 +3499,7 @@ strategy_callout(struct ccnd_handle *h,
                 if ((x->pfi_flags & CCND_PFI_DNSTREAM) != 0)
                     break;
 
-            ccnd_msg(h, "=============== find downstream done");
+            //ccnd_msg(h, "=============== find downstream done");
             if (x == NULL || (x->pfi_flags & CCND_PFI_PENDING) == 0) {
                 ccnd_debug_ccnb(h, __LINE__, "canthappen", NULL,
                                 ie->interest_msg, ie->size);
@@ -3516,7 +3516,7 @@ strategy_callout(struct ccnd_handle *h,
                 randrange = (randlow + 1) / 2;
             }
             nleft = 0;
-            ccnd_msg(h, "================ before for (p=ie->pfl");
+            //ccnd_msg(h, "================ before for (p=ie->pfl");
             for (p = ie->pfl; p!= NULL; p = p->next) {
                 if ((p->pfi_flags & CCND_PFI_UPSTREAM) != 0) {
                     if (p->faceid == best) {
@@ -3538,7 +3538,7 @@ strategy_callout(struct ccnd_handle *h,
                     }
                 }
             }
-            ccnd_msg(h, "=================== before if(nleft > 0");
+            //ccnd_msg(h, "=================== before if(nleft > 0");
             if (nleft > 0) {
                 /* Send remainder in order, with randomized timing */
                 amt = (2 * randrange + nleft - 1) / nleft;
@@ -3596,7 +3596,7 @@ do_propagate(struct ccn_schedule *sched,
     unsigned mn;
     unsigned rem;
 
-    ccnd_msg(h, "++++++++++++++++++++ in do_propagate, ie addr is %d", ie);
+    //ccnd_msg(h, "++++++++++++++++++++ in do_propagate, ie addr is %d", ie);
     
     if (ie->ev == ev)
         ie->ev = NULL;
@@ -3628,7 +3628,7 @@ do_propagate(struct ccn_schedule *sched,
             if (rem * 8 <= life)
                 continue;
             /* keep track of the 2 longest-lasting downstreams */
-            ccnd_msg(h, "++++++++++++++++++++++++ d0: %d,  d1: %d,  d2: %d, %d, %d", d[0], d[1], d[2]);
+            //ccnd_msg(h, "++++++++++++++++++++++++ d0: %d,  d1: %d,  d2: %d, %d, %d", d[0], d[1], d[2]);
             //Shen Li: n is always 0?
             for (i = n; i > 0 && wt_compare(d[i-1]->expiry, p->expiry) < 0; i--)
                 d[i] = d[i-1];
@@ -3639,12 +3639,12 @@ do_propagate(struct ccn_schedule *sched,
     }
     /* Send the interests out */
     upstreams = 0; /* Count unexpired upstreams */
-    ccnd_msg(h, "++++++++++++++ before send ie addr is %d", ie);
+    //ccnd_msg(h, "++++++++++++++ before send ie addr is %d", ie);
     for (p = ie->pfl; p != NULL; p = next) {
         next = p->next;
         if ((p->pfi_flags & CCND_PFI_UPSTREAM) == 0)
             continue;
-        ccnd_msg(h, "+++++++++++++++++++++++++++ in upstream loop");
+        //ccnd_msg(h, "+++++++++++++++++++++++++++ in upstream loop");
         face = face_from_faceid(h, p->faceid);
         if (face == NULL || (face->flags & CCN_FACE_NOSEND) != 0) {
             pfi_destroy(h, ie, p);
@@ -3679,12 +3679,12 @@ do_propagate(struct ccn_schedule *sched,
             p->pfi_flags |= CCND_PFI_UPHUNGRY;
         }
     }
-    ccnd_msg(h, "+++++++++++++++++++++ after send ie addr is %d", ie);
+    //ccnd_msg(h, "+++++++++++++++++++++ after send ie addr is %d", ie);
     if (pending == 0 && upstreams == 0) {
         strategy_callout(h, ie, CCNST_TIMEOUT);
-        ccnd_msg(h, "+++++++++++++++ after strategy_callout in do_prop");
+        //ccnd_msg(h, "+++++++++++++++ after strategy_callout in do_prop");
         consume_interest(h, ie);
-        ccnd_msg(h, "+++++++++++++ after consume interest");
+        //ccnd_msg(h, "+++++++++++++ after consume interest");
         return(0);
     }
     /* Determine when we need to run again */
@@ -3962,16 +3962,17 @@ pfi_unique_nonce(struct ccnd_handle *h, struct interest_entry *ie,
 }
 
 //Start: Added by Shen Li
-static void print_msg(const unsigned char * msg, int len, int id){
-    unsigned char * tmpMsg = (unsigned char *)calloc(len + 1, sizeof(unsigned char));
-    int i;
-    memcpy(tmpMsg, msg, len);
-    printf("Shen Li: msg %d, len = %d ========= %s |||| ", id, len, tmpMsg);
-    for(i = 0 ; i < len; ++i){
-        printf("%02x", msg[i]);
-    }
-    printf("\n");
-    free(tmpMsg);
+static inline void print_msg(const unsigned char * msg, int len, int id){
+   
+    //unsigned char * tmpMsg = (unsigned char *)calloc(len + 1, sizeof(unsigned char));
+    //int i;
+    //memcpy(tmpMsg, msg, len);
+    //printf("Shen Li: msg %d, len = %d ========= %s |||| ", id, len, tmpMsg);
+    //for(i = 0 ; i < len; ++i){
+    //    printf("%02x", msg[i]);
+    //}
+    //printf("\n");
+    //free(tmpMsg);
 }
 
 
@@ -4003,7 +4004,7 @@ hermes_propagate_interest(struct ccnd_handle * h,
     struct ccn_forwarding * f;
 
     while(npe && !(npe->forwarding)){
-        ccnd_msg(h, "=============== npe is %d", npe);
+        //ccnd_msg(h, "=============== npe is %d", npe);
         npe = npe->parent;
     }
     if(!npe){
@@ -4021,37 +4022,37 @@ hermes_propagate_interest(struct ccnd_handle * h,
     //ie->interest_msg is const char *
     link_interest_entry_to_nameprefix(h, ie, npe);
     tmpMsg = (unsigned char *)calloc(pi->offset[CCN_PI_B_InterestLifetime] + 1, sizeof(unsigned char));
-    ccnd_msg(h, "========================= tmpMsg allocated");
+    //ccnd_msg(h, "========================= tmpMsg allocated");
     ie->size = pi->offset[CCN_PI_B_InterestLifetime] + 1;
     memcpy(tmpMsg, msg, pi->offset[CCN_PI_B_InterestLifetime]);
     ie->interest_msg = (const unsigned char *)tmpMsg;
-    ccnd_msg(h, "=========================== memory copied");
+    //ccnd_msg(h, "=========================== memory copied");
     lifetime = ccn_interest_lifetime(msg, pi);
 
-    ccnd_msg(h, "=============== before outbound");    
+    //ccnd_msg(h, "=============== before outbound");    
 //
     outbound = ccn_indexbuf_create();
-    ccnd_msg(h, "============== after outbound, npe's addr is %d", npe);
-    ccnd_msg(h, "============== forwarding faceid is %d", npe->forwarding->faceid);
+    //ccnd_msg(h, "============== after outbound, npe's addr is %d", npe);
+    //ccnd_msg(h, "============== forwarding faceid is %d", npe->forwarding->faceid);
 
     f = npe->forwarding;
     while(f){
-        ccnd_msg(h, "=============== forwarding to face %d", f->faceid);
+        //ccnd_msg(h, "=============== forwarding to face %d", f->faceid);
         face = face_from_faceid(h, f->faceid);
         if (face != NULL && face != from) {
             if (h->debug & 32)
                 ccnd_msg(h, "outbound.%d adding %u", __LINE__, face->faceid);
-            ccnd_msg(h, "================= before append %d, %d", i, face->faceid);
+            //ccnd_msg(h, "================= before append %d, %d", i, face->faceid);
             ccn_indexbuf_append_element(outbound, face->faceid);
         }
         f = f->next;
     } 
-    ccnd_msg(h, "=============== in propagation, get outbound done");
+    //ccnd_msg(h, "=============== in propagation, get outbound done");
 
     nonce = msg + pi->offset[CCN_PI_B_Nonce];
     noncesize = pi->offset[CCN_PI_E_Nonce] - pi->offset[CCN_PI_B_Nonce];
 
-    ccnd_msg(h, "============== nounce done");
+    //ccnd_msg(h, "============== nounce done");
 
     if (noncesize != 0)
         ccn_ref_tagged_BLOB(CCN_DTAG_Nonce, msg,
@@ -4066,21 +4067,21 @@ hermes_propagate_interest(struct ccnd_handle * h,
 
 
     //Shen Li: check this, whether it has assigned pit_face_item correctly, seems that p is not linked to ie yet
-    ccnd_msg(h, "============== before pfi_seek %d, faceid : %d", ie->pfl, from->faceid);
+    //ccnd_msg(h, "============== before pfi_seek %d, faceid : %d", ie->pfl, from->faceid);
     //Shen Li: we need both UPSTREAM and DOWNSTREAM, DOWNSREAM is where the interest comes from, UPSTREAM is where the interest should go
     p = pfi_seek(h, ie, from->faceid, CCND_PFI_DNSTREAM);
-    ccnd_msg(h, "============== after pfi_seek %d %d", ie->pfl, ie->pfl->faceid);
+    //ccnd_msg(h, "============== after pfi_seek %d %d", ie->pfl, ie->pfl->faceid);
     p = pfi_set_nonce(h, ie, p, nonce, noncesize);
 
     //check CCND_PFI_PENDING is set
-    ccnd_msg(h, "=================== CCND_PFI_PENDING : %d", (p->pfi_flags & CCND_PFI_PENDING));
+    //ccnd_msg(h, "=================== CCND_PFI_PENDING : %d", (p->pfi_flags & CCND_PFI_PENDING));
     if (nonce == cb || pfi_unique_nonce(h, ie, p)) {
         ie->strategy.renewed = h->wtnow;
         ie->strategy.renewals += 1;
         if ((p->pfi_flags & CCND_PFI_PENDING) == 0) {
             p->pfi_flags |= CCND_PFI_PENDING;
             face->pending_interests += 1;
-            ccnd_msg(h, "=================== CCND_PFI_PENDING : %d", (p->pfi_flags & CCND_PFI_PENDING));
+            //ccnd_msg(h, "=================== CCND_PFI_PENDING : %d", (p->pfi_flags & CCND_PFI_PENDING));
         }
     }
     else {
@@ -4088,32 +4089,32 @@ hermes_propagate_interest(struct ccnd_handle * h,
         p->pfi_flags |= CCND_PFI_SUPDATA;
     }
 
-    ccnd_msg(h, "=============== before expiry");
+    //ccnd_msg(h, "=============== before expiry");
 
     pfi_set_expiry_from_lifetime(h, ie, p, lifetime);
     for (i = 0; i < outbound->n; i++) {
-        ccnd_msg(h, "==================== upstream faceid: %d", outbound->buf[i]);
+        //ccnd_msg(h, "==================== upstream faceid: %d", outbound->buf[i]);
         p = pfi_seek(h, ie, outbound->buf[i], CCND_PFI_UPSTREAM);
         if (wt_compare(p->expiry, h->wtnow) < 0) {
             p->expiry = h->wtnow + 1; // ZZZZ - the +1 may be overkill here.
             p->pfi_flags &= ~CCND_PFI_UPHUNGRY;
         }
     }
-    ccnd_msg(h, "================= before strategy");
+    //ccnd_msg(h, "================= before strategy");
     strategy_callout(h, ie, CCNST_FIRST);
-    ccnd_msg(h, "================= before usec");
+    //ccnd_msg(h, "================= before usec");
     usec = ie_next_usec(h, ie, &expiry);
-    ccnd_msg(h, "======================= before schedule");
+    //ccnd_msg(h, "======================= before schedule");
     if (ie->ev != NULL && wt_compare(expiry + 2, ie->ev->evint) < 0)
         ccn_schedule_cancel(h->sched, ie->ev);
     if (ie->ev == NULL){
         ie->ev = ccn_schedule_event(h->sched, usec, hermes_do_propagate, ie, expiry);
-        ccnd_msg(h, "============== after ccn_schedule_event");
+        //ccnd_msg(h, "============== after ccn_schedule_event");
     }
   
-    ccnd_msg(h, "===================== before destroy outbound") ;
+    //ccnd_msg(h, "===================== before destroy outbound") ;
     ccn_indexbuf_destroy(&outbound); 
-    ccnd_msg(h, "=================== before return");
+    //ccnd_msg(h, "=================== before return");
     return 0;
 }
 
@@ -4722,7 +4723,7 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
     print_msg(msg + pi->offset[CCN_PI_B_Name], pi->offset[CCN_PI_E_Name] - pi->offset[CCN_PI_B_Name], 3);
     print_msg(msg, pi->offset[CCN_PI_E_Name], 4);
      
-    ccnd_msg(h, "================== before ccnd_meter_bump");
+    //ccnd_msg(h, "================== before ccnd_meter_bump");
     ccnd_meter_bump(h, face->meter[FM_INTI], 1);
     if (pi->scope >= 0 && pi->scope < 2 &&
              (face->flags & CCN_FACE_GG) == 0) {
@@ -4731,7 +4732,7 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
         indexbuf_release(h, comps);
     }
     else {
-        ccnd_msg(h, "======================= in else");
+        //ccnd_msg(h, "======================= in else");
         if (h->debug & (16 | 8 | 2))
             ccnd_debug_ccnb(h, __LINE__, "interest_from", face, msg, size);
         if (pi->magic < 20090701) {
@@ -4755,28 +4756,28 @@ hermes_process_incoming_interest(struct ccnd_handle *h, struct face *face,
          *  2. if hit, release the index buffer (by call indexbuf_release(h, comps))
          *  3. if not, insert it into the SBF 
          */
-        ccnd_msg(h, "==================== before sbf_check");
+        //ccnd_msg(h, "==================== before sbf_check");
         if(sbf_check(hbw, msg + pi->offset[CCN_PI_B_Name], pi->offset[CCN_PI_E_Name] - pi->offset[CCN_PI_B_Name] - 1)){
-            ccnd_msg(h, "====================== sbf hit");
+            //ccnd_msg(h, "====================== sbf hit");
             //in PIT: Hermes will not propagate the interest again if it is already in PIT
             indexbuf_release(h, comps);
             comps = NULL;
             return;
         }
         else{
-            ccnd_msg(h, "======================== sbf miss");
+            //ccnd_msg(h, "======================== sbf miss");
             sbf_insert(hbw, msg + pi->offset[CCN_PI_B_Name], pi->offset[CCN_PI_E_Name] - pi->offset[CCN_PI_B_Name] - 1);
             hashtb_start(h->nameprefix_tab, e);
             res = nameprefix_seek(h, e, msg, comps, pi->prefix_comps);
             npe = e->data;
             //In the comps (it is a ccn_indexbuf), comps->n indicates the number of components
-            ccnd_msg(h, "========================= before propagate");
+            //ccnd_msg(h, "========================= before propagate");
             hermes_propagate_interest(h, msg, comps, pi, npe);
-            ccnd_msg(h, "====================== after propagate");
+            //ccnd_msg(h, "====================== after propagate");
             hashtb_end(e);
-            ccnd_msg(h, "=================== before release");
+            //ccnd_msg(h, "=================== before release");
             indexbuf_release(h, comps);
-            ccnd_msg(h, "==================== after release");
+            //ccnd_msg(h, "==================== after release");
             return;
         }
     }
@@ -5156,10 +5157,10 @@ hermes_process_incoming_content(struct ccnd_handle *h, struct face *face,
     }
     content_skiplist_insert(h, content);
     content->flags |= CCN_CONTENT_ENTRY_PRECIOUS;
-    ccnd_msg(h, "#################### before hermes_match_interests");
+    //ccnd_msg(h, "#################### before hermes_match_interests");
     hermes_match_interests(h, content, msg_prefix, prefix_len);
 Bail:
-    ccnd_msg(h, "###################in Bail");
+    //ccnd_msg(h, "###################in Bail");
     charbuf_release(h, comps);
     //Shen Li: content->key  still points to cb->buf
     charbuf_release(h, cb);
@@ -5411,7 +5412,7 @@ process_input(struct ccnd_handle *h, int fd)
     int err = 0;
     socklen_t err_sz;
 
-    ccnd_msg(h, "====in process_input(");
+    //ccnd_msg(h, "====in process_input(");
     
     face = hashtb_lookup(h->faces_by_fd, &fd, sizeof(fd));
     if (face == NULL)
@@ -5422,7 +5423,7 @@ process_input(struct ccnd_handle *h, int fd)
         ccnd_msg(h, "done in the process_input");
         return;
     }
-    ccnd_msg(h, "============ before : err_sz = sizeof(err);");
+    //ccnd_msg(h, "============ before : err_sz = sizeof(err);");
     err_sz = sizeof(err);
     res = getsockopt(face->recv_fd, SOL_SOCKET, SO_ERROR, &err, &err_sz);
     if (res >= 0 && err != 0) {
@@ -5432,7 +5433,7 @@ process_input(struct ccnd_handle *h, int fd)
             return;
         }
     }
-    ccnd_msg(h, "=========== before : d = &face->decoder;");
+    //ccnd_msg(h, "=========== before : d = &face->decoder;");
     d = &face->decoder;
     if (face->inbuf == NULL)
         face->inbuf = ccn_charbuf_create();
@@ -5441,27 +5442,27 @@ process_input(struct ccnd_handle *h, int fd)
     buf = ccn_charbuf_reserve(face->inbuf, 8800);
     memset(&sstor, 0, sizeof(sstor));
 
-    ccnd_msg(h, "============= before : res = recvfrom(face->recv_fd, buf, face->inbuf->limit - face->inbuf->length,");    
+    //ccnd_msg(h, "============= before : res = recvfrom(face->recv_fd, buf, face->inbuf->limit - face->inbuf->length,");    
 
     res = recvfrom(face->recv_fd, buf, face->inbuf->limit - face->inbuf->length,
             /* flags */ 0, addr, &addrlen);
-    ccnd_msg(h, "============ after : res = recvfrom(face->recv_fd, buf, face->inbuf->limit  res = %d", res);
+    //ccnd_msg(h, "============ after : res = recvfrom(face->recv_fd, buf, face->inbuf->limit  res = %d", res);
     if (res == -1){
         ccnd_msg(h, "in if");
         ccnd_msg(h, "recvfrom face %u :%s (errno = %d)",
                     face->faceid, strerror(errno), errno);
     }
     else if (res == 0 && (face->flags & CCN_FACE_DGRAM) == 0){
-        ccnd_msg(h, "============= before : shutdown_client_fd(h, fd);");
+        //ccnd_msg(h, "============= before : shutdown_client_fd(h, fd);");
         shutdown_client_fd(h, fd);
     }
     else {
-        ccnd_msg(h, "in else");
+        //ccnd_msg(h, "in else");
         source = get_dgram_source(h, face, addr, addrlen, (res == 1) ? 1 : 2);
         ccnd_meter_bump(h, source->meter[FM_BYTI], res);
         source->recvcount++;
         source->surplus = 0; // XXX - we don't actually use this, except for some obscure messages.
-        ccnd_msg(h, "============= after : source->surplus = 0;");
+        //ccnd_msg(h, "============= after : source->surplus = 0;");
         if (res <= 1 && (source->flags & CCN_FACE_DGRAM) != 0) {
             // XXX - If the initial heartbeat gets missed, we don't realize the locality of the face.
             if (h->debug & 128)
@@ -5470,39 +5471,39 @@ process_input(struct ccnd_handle *h, int fd)
         }
         face->inbuf->length += res;
         msgstart = 0;
-        ccnd_msg(h, "============== after: msgstart = 0;");
+        //ccnd_msg(h, "============== after: msgstart = 0;");
         if (((face->flags & CCN_FACE_UNDECIDED) != 0 &&
              face->inbuf->length >= 6 &&
              0 == memcmp(face->inbuf->buf, "GET ", 4))) {
-            ccnd_msg(h, "============= before ccnd_stats_handle_http_connection");
+           // ccnd_msg(h, "============= before ccnd_stats_handle_http_connection");
             ccnd_stats_handle_http_connection(h, face);
-            ccnd_msg(h, "============= after ccnd_stats_handle_http_connection");
+            //ccnd_msg(h, "============= after ccnd_stats_handle_http_connection");
             return;
         }
-        ccnd_msg(h, "========== before print_msg buf = %d, res = %d", buf, res);
-        print_msg(buf, res, 0);
-        ccnd_msg(h, "???????????????? before first ccn_skeleton_decode d->state = %d, res = %d, face->faceid = %d", d->state, res, face->faceid);
+        //ccnd_msg(h, "========== before print_msg buf = %d, res = %d", buf, res);
+        //print_msg(buf, res, 0);
+        //ccnd_msg(h, "???????????????? before first ccn_skeleton_decode d->state = %d, res = %d, face->faceid = %d", d->state, res, face->faceid);
         dres = ccn_skeleton_decode(d, buf, res);
-        ccnd_msg(h, "???????????????????? before while face->flags : %d, d->state: %d", face->flags, d->state);
+        //ccnd_msg(h, "???????????????????? before while face->flags : %d, d->state: %d", face->flags, d->state);
         while (d->state == 0) {
-            ccnd_msg(h, "????????????????????? before process msgstart: %d, d->index: %d, dres: %d, face->inbuf->length: %d", msgstart, d->index, dres, face->inbuf->length);
+            //ccnd_msg(h, "????????????????????? before process msgstart: %d, d->index: %d, dres: %d, face->inbuf->length: %d", msgstart, d->index, dres, face->inbuf->length);
             process_input_message(h, source,
                                   face->inbuf->buf + msgstart,
                                   d->index - msgstart,
                                   (face->flags & CCN_FACE_LOCAL) != 0);
-            ccnd_msg(h, "?????????????????????  after process msgstart: %d, d->index: %d, dres: %d, face->inbuf->length: %d", msgstart, d->index, dres, face->inbuf->length);
+            //ccnd_msg(h, "?????????????????????  after process msgstart: %d, d->index: %d, dres: %d, face->inbuf->length: %d", msgstart, d->index, dres, face->inbuf->length);
             msgstart = d->index;
             if (msgstart == face->inbuf->length) {
                 face->inbuf->length = 0;
-                ccnd_msg(h, "!!!!!!!!!!!!!!!!!! face %d inbuf length cleaned %d", face->faceid, face->inbuf->length);
+                //ccnd_msg(h, "!!!!!!!!!!!!!!!!!! face %d inbuf length cleaned %d", face->faceid, face->inbuf->length);
                 return;
             }
             dres = ccn_skeleton_decode(d,
                     face->inbuf->buf + d->index, // XXX - msgstart and d->index are the same here - use msgstart
                     res = face->inbuf->length - d->index);  // XXX - why is res set here?
-            ccnd_msg(h, "??????????????????? d->state: %d", d->state);
+            //ccnd_msg(h, "??????????????????? d->state: %d", d->state);
         }
-        ccnd_msg(h, "???????????????????? after while face->flags : %d", face->flags);
+        //ccnd_msg(h, "???????????????????? after while face->flags : %d", face->flags);
         //Shen Li: why CCN_FACE_DGRAM is an error?
         if ((face->flags & CCN_FACE_DGRAM) != 0) {
             ccnd_msg(h, "222222 protocol error on face %u, discarding %u bytes",
@@ -5821,14 +5822,14 @@ ccnd_run(struct ccnd_handle *h)
                         shutdown_client_fd(h, h->fds[i].fd);
                     continue;
                 }
-                ccnd_msg(h, "==========out if in main loop");
+                //ccnd_msg(h, "==========out if in main loop");
                 if (h->fds[i].revents & (POLLOUT)){
-                    ccnd_msg(h, "============== before do_deferred_write");
+                    //ccnd_msg(h, "============== before do_deferred_write");
                     do_deferred_write(h, h->fds[i].fd);
-                    ccnd_msg(h, "============== after do_deferred_write");
+                    //ccnd_msg(h, "============== after do_deferred_write");
                 }
                 else if (h->fds[i].revents & (POLLIN)){
-                    ccnd_msg(h, "=============== in else");
+                    //ccnd_msg(h, "=============== in else");
                     process_input(h, h->fds[i].fd);
                 }
             }
