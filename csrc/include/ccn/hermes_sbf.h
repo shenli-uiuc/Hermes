@@ -9,7 +9,7 @@
 
 #define SBF_MAX_HASH 10  /* The max number of hash functions*/
 #define SBF_MAX_SIZE (1 << 28)  /* The size of bloom filter might be much larger in real use cases */
-#define SBF_LOAD_FACTOR 24 /* m = 24n: This leads to roughly 0.0001 false positive rate  */
+#define SBF_LOAD_FACTOR 16 /* m = 16n: (deprecated after)This leads to roughly 0.0001 false positive rate  */
 
 #define SBF_DEF_MEMBERS 1000
 #define SBF_DEF_BLOOMS 3
